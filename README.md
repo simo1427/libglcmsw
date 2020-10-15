@@ -35,7 +35,7 @@ libglcmsw/
 WIP
 
 ##Installation
-After installing the openslide binaries (see [openslide page](https://openslide.org/download/)),
+After installing the openslide binaries (see [Distribution packages, respectively Windows binaries](https://openslide.org/download/)),
 
 ```pip3 install dist/libglcmsw-1.0.0-py3-none-any.whl``` (Linux)
 
