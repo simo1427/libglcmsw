@@ -33,3 +33,7 @@ libglcmsw/
 
 ## Documentation
 WIP
+
+## Note for testing parallel execution
+
+The script is named ```examples/coretest-tilingrenderer.py```. Before running it, under the ```if __name__ == "__main__"``` clause, change the coresmax variable so that it corresponds to the number of logical processors in the system. The only thing needed is to run the script. It will generate a text file named ```corestest```, to which stdout is redirected. After completion of the testing process, please send this to my email address, along with CPU model and RAM frequency and size (for instance: i7-9750H, DDR4-2666 16GB)
