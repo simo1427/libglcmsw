@@ -27,7 +27,7 @@ There are two ways in which an image could be rendered - using the raster or the
 | :---: | :---: |
 | under 1 MP images | larger images |
 | loads the entire image in memory | separates into smaller images |
-| returns a whole image | requires stiching (using `libglcmsw.tiling.reconstruct` submodule) |
+| returns a whole image | requires stitching (using `libglcmsw.tiling.reconstruct` submodule) |
 | less complicated code | requires more functions to execute correctly |
 
 Keep in mind that the rendering functions create a `ProcessPoolExecutor()`, hence code should be under an `if __name__ == "__main__":` clause.
