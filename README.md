@@ -32,7 +32,7 @@ libglcmsw/
 ```
 
 ## Documentation
-WIP
+see DOCUMENTATION.md
 
 ## Installation
 After installing the openslide binaries (see [Distribution packages, respectively Windows binaries](https://openslide.org/download/)),
