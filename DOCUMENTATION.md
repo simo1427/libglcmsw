@@ -42,6 +42,29 @@ The name of the properties are analogous to those in `scikit-image`:
 - `correlation`
 - `entropy`
 
+### Class `SlidingWindow`
+
+This class has first been introduced in version 1.1.0. It facilitates the use of the library, should one only need to render an image.
+The constructor takes the following arguments:
+1. fname - path to image
+2. windowsz - window size,
+3. prop - property
+4. downscale=1 - factor by which the input image is downscaled
+
+Then there are two methods:
+
+1. **render** - used for rendering the image and it takes the following arguments:
+    1. mode (string) - raster or tiling
+    2. tmpdir (string) - path to temporary directory
+    3. workers=cpu_count//2-1
+    4. tilesz=, applicable only for tiling renderer
+    5. rowssave=40, applicable only for raster renderer
+
+2. **savetif** - used to easily save the results in a TIF file
+    1. fname - path to new file without file extension
+    2. type="float32", "float64", "uint8" - data type in the image
+    
+    Should TIF not be the desired format for saving, one can use `SlidingWindow.result` to obtain the rendered image as a NumPy array and use any image library for Python to save it to a file.
 ### Writing code with the raster renderer
 
 After loading the image with `libglcmsw.io.openimg.load()`, run the function `libglcmsw.render.cpu.rasterrender()` with the required parameters. It returns a numpy array, which could be saved using `skimage.io.imsave()` from the library [`scikit-image`](https://github.com/scikit-image/scikit-image).
