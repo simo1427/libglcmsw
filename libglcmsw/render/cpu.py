@@ -8,6 +8,7 @@ import concurrent.futures
 import multiprocessing
 import time
 from ..io import *
+import itertools
 
 """
 func glcmprop:
@@ -152,10 +153,8 @@ def tilerenderlist(dpath,inptile,windowsz,**kwargs):
   begintotal = time.perf_counter()
   with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
     #start = time.perf_counter()
-    inpdir= [dpath for tile in inptile]
-    inpwin= [windowsz for tile in inptile]
-    inpprop=[prop for tile in inptile]
-    results = executor.map(singletilecpu, inptile, inpdir,inpwin,inpprop)
+
+    results = executor.map(singletilecpu, inptile, itertools.repeat(dpath),itertools.repeat(windowsz),itertools.repeat(prop))
     for p in inptile: 
       try:
         ni, nj=p
@@ -258,12 +257,8 @@ def rasterrender(osobj,windowsz,**kwargs):
   begintotal = time.perf_counter()
   with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
     inp = range(k,ri,1)#TEMP ri=k+ROWSSAVE!!!!
-    inprj = [rj for element in inp]
-    inpim = [im for element in inp]
-    inpprop = [prop for element in inp]
-    inpwindowsz = [windowsz for element in inp]
     print(inp)
-    results = executor.map(singleline, inp,inprj, inpim, inpprop, inpwindowsz)
+    results = executor.map(singleline, inp,itertools.repeat(rj), itertools.repeat(im), itertools.repeat(prop), itertools.repeat(windowsz))
     for p in range(int(k/ROWSSAVE), int(ri/ROWSSAVE+1)): 
       print(p)
       beginlocal=time.perf_counter()
