@@ -1,4 +1,3 @@
-<<<<<<< HEAD
 # Documentation of ```libglcmsw```
 
 This library provides tools for rendering GLCM sliding window images.
@@ -369,4 +368,3 @@ return a list of tiles whose originals have been found in the directory containi
 
 Arguments:
 1. dpath - path to directory containing all tiles
->>>>>>> 6ba11ab55cca5e4186c009787ac4952f50c8d4d7
