@@ -135,18 +135,12 @@ func tilerenderlist
     save the processed image with the prefix 'g' - important for libglcmsw.io.crashrecovery.getunprocessedtiles() and libglcmsw.tiling.reconstruct.*
 """
 def tilerenderlist(dpath,inptile,windowsz,**kwargs):
-  try:
-    workers=kwargs["ncores"]
-    if multiprocessing.cpu_count()<workers:
-      workers = multiprocessing.cpu_count()
-  except KeyError:
-    workers=multiprocessing.cpu_count()-2
-  try:
-    prop=kwargs["prop"]
-  except KeyError:
-    prop="homogeneity"
-  
-  if len(inptile)<workers:
+  workers=kwargs.get("ncores",multiprocessing.cpu_count()//2-1)
+  if multiprocessing.cpu_count()<workers or workers<0:
+    raise ValueError("Invalid number of workers")
+  prop=kwargs.get("prop","homogeneity")
+
+  if len(inptile)<workers and len(inptile):
     workers = len(inptile)
 
   print(f"Using {workers} cores for rendering")
@@ -220,35 +214,22 @@ func rasterrender:
   create a ProcessPoolExecutor:
   define property to be calculated
   create a ProcessPoolExecutor:
-    get a list for the arguments to be passed to the iterated function (libglcmsw.render.cpu.singletilecpu)
+    get a list for the arguments to be passed to the iterated function (libglcmsw.render.cpu.singleline)
     create a map
     for every row in the remaining number of rows (after recovery from any crashes)
       save the returned row from the function in the map (libglcmsw.render.cpu.singleline)
     return a numpy array - image as uint8, instead of float64
 """
 def rasterrender(osobj,windowsz,**kwargs):
-  try:
-    workers=kwargs["ncores"]
-    if multiprocessing.cpu_count()<workers:
-      workers = multiprocessing.cpu_count()
-  except KeyError:
-    workers=multiprocessing.cpu_count()-2
-  try:
-    prop=kwargs["prop"]
-  except KeyError:
-    prop="homogeneity"
-  try:
-    ROWSSAVE=kwargs["rowssave"]
-  except KeyError:
-    ROWSSAVE=42
-  try:
-    recoveryfile=kwargs["recoveryfile"]
-  except KeyError:
-    recoveryfile="./tmpglcmsw.npy"
-  try:
-    dsfact=kwargs["downscale"]
-  except KeyError:
-    dsfact=1
+  workers = kwargs.get("ncores", multiprocessing.cpu_count() // 2 - 1)
+  if multiprocessing.cpu_count() < workers or workers < 0:
+    raise ValueError("Invalid number of workers")
+  prop = kwargs.get("prop", "homogeneity")
+  if len(inptile) < workers and len(inptile):
+    workers = len(inptile)
+  ROWSSAVE=kwargs.get("rowssave", 80)
+  recoveryfile=kwargs.get("recoveryfile", "./tmpglcmsw.npy")
+  dsfact=kwargs.get("downscale", 1)
   PATCH_SIZE=windowsz
   im=img_as_ubyte(rgb2gray(openimg.tonpyarr(osobj,downscale=dsfact)))
   ri=len(im[:,0])-PATCH_SIZE
