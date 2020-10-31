@@ -1,3 +1,6 @@
+1.2.0dev
+- added kwargs to change GLCM neighbourhood (one per image!)
+
 1.1.2
 - Optimized kwargs in submodule render.cpu
 - changed default rowssave value from 42 to 80
