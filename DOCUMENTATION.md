@@ -50,6 +50,8 @@ The constructor takes the following arguments:
 2. windowsz - window size,
 3. prop - property
 4. downscale=1 - factor by which the input image is downscaled
+5. angle=0 - angle of GLCM
+6. distance=1 - distance of GLCM
 
 Then there are two methods:
 
@@ -135,6 +137,8 @@ Arguments:
 4. **kwargs:
     - ncores (int) - number of cores to be used for rendering
     - prop (string)- property to be calculated (for GLCM)
+    - angle=0 - angle of GLCM
+    - distance=1 - distance of GLCM
 
 `libglcmsw.render.cpu.`**`rasterrender`**`(osobj,windowsz,**kwargs)`:
 returns numpy array - rendered sliding window image (float64)
@@ -148,6 +152,8 @@ Arguments:
     - rowssave (int) - number of rows after which a tmp file is saved
     - recoveryfile (string) - path to recovery file - deleted after successful completion
     - downscale (float) - factor by which the image will be downscaled
+    - angle=0 - angle of GLCM
+    - distance=1 - distance of GLCM
 
 ### tiling
 
@@ -172,7 +178,9 @@ Arguments:
 5. listall - list of all tiles (given by libglcmsw.tiling.tilegen.gettileslistfull)
 6. **kwargs:
     - prop (string) - parse GLCM property, the maximum value of whichwould be used to fill an empty tile
-
+    - angle=0 - angle of GLCM
+    - distance=1 - distance of GLCM
+    
 #### tilegen
 
 `libglcmsw.tiling.tilegen.`**`tilegendisc`**`(openslideobj,tilesz,ovrlap)`:
