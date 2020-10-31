@@ -23,6 +23,7 @@ Install openslide binaries (see [Distribution packages, respectively Windows bin
 ## Rendering modes
 
 There are two ways in which an image could be rendered - using the raster or the tiling renderer.
+
 | Raster | Tiling |
 | :---: | :---: |
 | under 1 MP images | larger images |
