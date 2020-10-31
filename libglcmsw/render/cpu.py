@@ -225,8 +225,6 @@ def rasterrender(osobj,windowsz,**kwargs):
   if multiprocessing.cpu_count() < workers or workers < 0:
     raise ValueError("Invalid number of workers")
   prop = kwargs.get("prop", "homogeneity")
-  if len(inptile) < workers and len(inptile):
-    workers = len(inptile)
   ROWSSAVE=kwargs.get("rowssave", 80)
   recoveryfile=kwargs.get("recoveryfile", "./tmpglcmsw.npy")
   dsfact=kwargs.get("downscale", 1)
