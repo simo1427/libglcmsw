@@ -1,5 +1,4 @@
 # TODO
-- [ ] GPU renderer
 - [X] Class SlidingWindow
 - [ ] GPU renderer:
     - [X] parse available platforms
