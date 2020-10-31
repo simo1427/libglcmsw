@@ -47,6 +47,8 @@ func singletilecpu:
   path - directory containing tile files
   windowsz - size of window for Sliding Window analysis
   prop - property of GLCM to be calculated
+  angle - angle of GLCM (0,45,90,...)
+  distance - distance of GLCM
 
   Process:
   parse tile coords;
@@ -62,7 +64,7 @@ func singletilecpu:
   Usage:
   in libglcmsw.render.cpu.tilerenderlist
 """
-def singletilecpu(coords, path, windowsz, prop):
+def singletilecpu(coords, path, windowsz, prop,angle, distance):
   ni,nj=coords
   im=img_as_ubyte(rgb2gray(np.load(path+f"/{ni}_{nj}.npy")))
   ri=len(im[:,0])-windowsz+windowsz%2
@@ -76,7 +78,7 @@ def singletilecpu(coords, path, windowsz, prop):
     tmp = np.empty((rj), dtype=np.float32)
     for j in range(rj):
       img = im[i:i + windowsz, j:j + windowsz]
-      glcm = greycomatrix(img, distances=[1], angles=[0], levels=256, symmetric=True, normed=True)
+      glcm = greycomatrix(img, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
       tmp[j]=glcmprop(glcm, prop)
     glcm_hom[i]=tmp
     #print(f"Done with {i}")
@@ -122,6 +124,8 @@ func tilerenderlist
   **kwargs:
     ncores - number of cores to be used for rendering
     prop - property to be calculated (for GLCM)
+    angle - angle of GLCM (0,45,90,...)
+    distance - distance of GLCM
     
   Process:
   define number of cores
@@ -139,16 +143,18 @@ def tilerenderlist(dpath,inptile,windowsz,**kwargs):
   if multiprocessing.cpu_count()<workers or workers<0:
     raise ValueError("Invalid number of workers")
   prop=kwargs.get("prop","homogeneity")
-
   if len(inptile)<workers and len(inptile):
     workers = len(inptile)
+
+  angle=kwargs.get("angle",0)
+  distance=kwargs.get("distance",1)
 
   print(f"Using {workers} cores for rendering")
   begintotal = time.perf_counter()
   with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
     #start = time.perf_counter()
 
-    results = executor.map(singletilecpu, inptile, itertools.repeat(dpath),itertools.repeat(windowsz),itertools.repeat(prop))
+    results = executor.map(singletilecpu, inptile, itertools.repeat(dpath),itertools.repeat(windowsz),itertools.repeat(prop),itertools.repeat(angle),itertools.repeat(distance))
     for p in inptile: 
       try:
         ni, nj=p
@@ -172,7 +178,9 @@ func singleline:
   im - image file, from which the segment for the sliding window is appended
   prop - glcm property to be calculated
   PATCH_SIZE - size of sliding window
-
+  angle - angle of GLCM (0,45,90,...)
+  distance - distance of GLCM
+  
   Process:
   create a new line for the array - tmp
   for every column in the file:
@@ -182,12 +190,12 @@ func singleline:
     add it to the respective element in the tmp array
   return the tmp array
 """
-def singleline(i,rj,im,prop,PATCH_SIZE): # processingi of 1 row of the image
+def singleline(i,rj,im,prop,PATCH_SIZE,angle, distance): # processingi of 1 row of the image
   tmp = np.empty((rj), dtype=np.float32)
   for j in range(rj):
     img = im[i:i + PATCH_SIZE, j:j + PATCH_SIZE]
     #print(glcm_hom.flags)
-    glcm = greycomatrix(img, distances=[1], angles=[0], levels=256, symmetric=True, normed=True)
+    glcm = greycomatrix(img, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
     tmp[j]=glcmprop(glcm, prop)
     #print(f'{i} {j}')
   #print(f'Done with {i}')
@@ -208,6 +216,8 @@ func rasterrender:
     rowssave - number of rows after which a tmp file is saved
     recoveryfile - path to recovery file
     downscale - factor by which the image will be downscaled
+    angle - angle of GLCM (0,45,90,...)
+    distance - distance of GLCM
 
   Process:
   define number of coresdefine number of cores
@@ -229,6 +239,10 @@ def rasterrender(osobj,windowsz,**kwargs):
   recoveryfile=kwargs.get("recoveryfile", "./tmpglcmsw.npy")
   dsfact=kwargs.get("downscale", 1)
   PATCH_SIZE=windowsz
+
+  angle = kwargs.get("angle", 0)
+  distance = kwargs.get("distance", 1)
+
   im=img_as_ubyte(rgb2gray(openimg.tonpyarr(osobj,downscale=dsfact)))
   ri=len(im[:,0])-PATCH_SIZE
   rj=len(im[0,:])-PATCH_SIZE
@@ -237,7 +251,7 @@ def rasterrender(osobj,windowsz,**kwargs):
   with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
     inp = range(k,ri,1)#TEMP ri=k+ROWSSAVE!!!!
     print(inp)
-    results = executor.map(singleline, inp,itertools.repeat(rj), itertools.repeat(im), itertools.repeat(prop), itertools.repeat(windowsz))
+    results = executor.map(singleline, inp,itertools.repeat(rj), itertools.repeat(im), itertools.repeat(prop), itertools.repeat(windowsz),itertools.repeat(angle), itertools.repeat(distance))
     for p in range(int(k/ROWSSAVE), int(ri/ROWSSAVE+1)): 
       print(p)
       beginlocal=time.perf_counter()

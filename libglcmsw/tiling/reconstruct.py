@@ -92,8 +92,11 @@ def fillblanks(dpath,img,tilesz,ovrlap,listall,**kwargs):
         prop=kwargs["prop"]
     except KeyError:
         prop="homogeneity"
+    angle = kwargs.get("angle", 0)
+    distance = kwargs.get("distance", 1)
+
     tmp = np.full((ovrlap*2+1, ovrlap*2+1),255, dtype=np.uint8)
-    glcm = greycomatrix(tmp, distances=[1], angles=[0], levels=256, symmetric=True, normed=True)
+    glcm = greycomatrix(tmp, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
     fill_value = cpu.glcmprop(glcm, prop)
     for fname in sorted(os.listdir(dpath)):
         if fname[0]=='g':
