@@ -1,4 +1,9 @@
 # TODO
-- [ ] Add the option to change the angle and distance for the GLCM generation
 - [ ] GPU renderer
 - [X] Class SlidingWindow
+- [ ] GPU renderer:
+    - [X] parse available platforms
+- [ ] separate directories for separate properties, only one source
+- [ ] add option to change GLCM parameters through kwargs:
+    - [ ] render.cpu
+    - [ ] tiling.reconstruct
