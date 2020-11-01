@@ -11,7 +11,7 @@ if __name__ == "__main__":
     WINDOWSZ=13
     TILESZ=125
     workers=5
-    output=f"./outputmasked.tif"
+    output=f"./outputmasked-colmajor.tif"
     angle=0
     distance=1
     #End of input data
@@ -23,8 +23,8 @@ if __name__ == "__main__":
     import os
     w, h = numtiles
     listoftilestmp=[]
-    for i in range(h):
-        for j in range(w):
+    for i in range(w):
+        for j in range(h):
             try:
                 tmp = np.load(tmpdirmask+f"/{i}_{j}.npy")
                 if 255 in tmp:
@@ -36,6 +36,7 @@ if __name__ == "__main__":
             except:
                 pass
     listoftiles=libglcmsw.io.crashrecovery.getunprocessedtiles(tmpdirimg,listoftilestmp)
+    print(listoftiles)
     if not listoftiles:
         print("No tiles to render. Stopping")
     else:
