@@ -10,7 +10,7 @@ setuptools.setup(
     author_email="simeon.a.atanasov@gmail.com",
     despcription="A module that is able to produce sliding window image of large files",
     long_description=long_description,
-    long_descroption_content_type="text/markdown",
+    long_description_content_type='text/markdown',
     url="https://github.com/simo1427/libglcmsw",
     packages=setuptools.find_packages(),
     classifiers=[
