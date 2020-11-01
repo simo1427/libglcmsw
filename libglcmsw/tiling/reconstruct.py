@@ -28,7 +28,7 @@ func columnconcat:
 def columnconcat(dpath,col,ncols):
     im=[]
     for i in range(ncols):
-        im.append(np.load(dpath+f"/g{i}_{col}.npy"))
+        im.append(np.load(dpath+f"/g{col}_{i}.npy"))
         #print(i,col)
     out=np.concatenate((im[0], im[1]), axis=0)
     for i in range(2,ncols,1):
@@ -107,7 +107,7 @@ def fillblanks(dpath,img,tilesz,ovrlap,listall,**kwargs):
                 pass
     for tileid in listall:
         ni, nj=tileid
-        tmp=tilegen.singletileread(img,tilesz,ovrlap,nj,ni)
+        tmp=tilegen.singletileread(img,tilesz,ovrlap,ni,nj)
         #print(tileid)
         #print(tmp.shape)
         #print(tmp[2*ovrlap:,2*ovrlap:,0].shape)
