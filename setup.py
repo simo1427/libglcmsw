@@ -5,10 +5,10 @@ with open("README.md","r") as fh:
 
 setuptools.setup(
     name='libglcmsw',
-    version='1.2.4',
+    version='1.2.5',
     author="Simeon Atanasov",
     author_email="simeon.a.atanasov@gmail.com",
-    despcription="A module that is able to produce sliding window image of large files",
+    description="A module that is able to produce sliding window image of large files",
     long_description=long_description,
     long_description_content_type='text/markdown',
     url="https://github.com/simo1427/libglcmsw",
