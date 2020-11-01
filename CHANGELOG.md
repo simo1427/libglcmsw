@@ -1,5 +1,8 @@
-1.2.0dev
+1.2.2
 - added kwargs to change GLCM neighbourhood (one per image!)
+- switched to column-major tile addressing
+- optimized kwargs
+- cleaned unnecessary comments throughout all modules
 
 1.1.2
 - Optimized kwargs in submodule render.cpu
