@@ -1,5 +1,3 @@
-#TODO: implement verbosity levels
-#print statements verbosity levels check
 import openslide, openslide.deepzoom
 import os, sys
 import PIL
@@ -29,10 +27,7 @@ func tilegendisc:
 """
 def tilegendisc(demoimg,tilesz,ovrlap,**kwargs):
     dz = openslide.deepzoom.DeepZoomGenerator(demoimg, tile_size=tilesz, overlap=ovrlap, limit_bounds=True)
-    try:
-        tmpdir=kwargs["tmpdir"]
-    except KeyError:
-        tmpdir="./.deepzoomtmp"
+    tmpdir=kwargs.get("tmpdir","./slidingwindowtmp")
     try:
         os.mkdir(tmpdir)
     except FileExistsError:
