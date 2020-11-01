@@ -56,8 +56,8 @@ def tilegendisc(demoimg,tilesz,ovrlap,**kwargs):
         for j in range(rj):
             tmp=dz.get_tile(lc,(i,j))
             #np.save((str(j)+"_"+str(i)+".npy"),np.array(tmp))
-            #tmp.save((str(j)+"_"+str(i)+".png"),format="png")#offloading to disc
-            np.save(f"{j}_{i}.npy",np.array(tmp))
+            #tmp.save((str(i)+"_"+str(j)+".png"),format="png")#offloading to disc
+            np.save(f"{i}_{j}.npy",np.array(tmp))
             #print(f"Done with {(i,j)}")
         #print(f"Done with column {i}")
     os.chdir("..")
@@ -115,7 +115,7 @@ def gettileslistfull(openslideobj,tilesz,ovrlap):
     if height<(2*ovrlap+1):
         rj = rj-1
     print(ri, rj)
-    return [(j,i) for i in range(ri) for j in range(rj)]
+    return [(i,j) for i in range(ri) for j in range(rj)]
 
 """
 func gettileslistdir:
