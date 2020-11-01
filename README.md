@@ -1,7 +1,8 @@
 # libglcmsw
 
 ## Introduction
-This library provides the necessary tools to generate sliding window images. It accepts a variety of formats: 
+The library uses [`openslide-python`](https://github.com/openslide/openslide-python) and [`scikit-image`](https://github.com/scikit-image/scikit-image)
+to provide the necessary tools to generate sliding window images. It accepts a variety of formats: 
 - those supported by PIL
 - supported by OpenSlide (for biomedical images):
   - Aperio (.svs, .tif)
