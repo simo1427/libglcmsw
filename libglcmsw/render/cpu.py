@@ -70,7 +70,6 @@ def singletilecpu(coords, path, windowsz, prop,angle, distance):
   ri=len(im[:,0])-windowsz+windowsz%2
   rj=len(im[0,:])-windowsz+windowsz%2
   glcm_hom=np.zeros((ri,rj))
-  #print(windowsz)
   i=0
   j=0
   begintotal = time.perf_counter()
@@ -152,17 +151,14 @@ def tilerenderlist(dpath,inptile,windowsz,**kwargs):
   print(f"Using {workers} cores for rendering")
   begintotal = time.perf_counter()
   with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-    #start = time.perf_counter()
 
     results = executor.map(singletilecpu, inptile, itertools.repeat(dpath),itertools.repeat(windowsz),itertools.repeat(prop),itertools.repeat(angle),itertools.repeat(distance))
     for p in inptile: 
       try:
         ni, nj=p
-        #si.imsave(dpath+f"/g{ni}_{nj}.png",img_as_ubyte(next(results)))
         np.save(dpath+f"/g{ni}_{nj}.npy",next(results))
       except StopIteration:
         break
-      #print(f'Done with {p} in {round(finishlocal-beginlocal, 3)}')
   
   finishtotal = time.perf_counter()
   print(f'Ended in {round(finishtotal-begintotal, 3)}')
@@ -194,13 +190,9 @@ def singleline(i,rj,im,prop,PATCH_SIZE,angle, distance): # processingi of 1 row 
   tmp = np.empty((rj), dtype=np.float32)
   for j in range(rj):
     img = im[i:i + PATCH_SIZE, j:j + PATCH_SIZE]
-    #print(glcm_hom.flags)
     glcm = greycomatrix(img, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
     tmp[j]=glcmprop(glcm, prop)
-    #print(f'{i} {j}')
-  #print(f'Done with {i}')
   return tmp
-  #dump(glcm_hom,filename)
 
 
 """

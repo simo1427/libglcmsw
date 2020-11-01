@@ -1,9 +1,7 @@
 import openslide, openslide.deepzoom
-import os, sys
-import PIL
+import os
 import numpy as np
-from skimage import io as si
-from . import reconstruct
+
 
 """
 func tilegendisc:
@@ -50,11 +48,7 @@ def tilegendisc(demoimg,tilesz,ovrlap,**kwargs):
     for i in range(ri):
         for j in range(rj):
             tmp=dz.get_tile(lc,(i,j))
-            #np.save((str(j)+"_"+str(i)+".npy"),np.array(tmp))
-            #tmp.save((str(i)+"_"+str(j)+".png"),format="png")#offloading to disc
             np.save(f"{i}_{j}.npy",np.array(tmp))
-            #print(f"Done with {(i,j)}")
-        #print(f"Done with column {i}")
     os.chdir("..")
     return (ri, rj)
     
@@ -81,7 +75,6 @@ def singletileread(demoimg,tilesz,ovrlap,ni,nj):
     dz = openslide.deepzoom.DeepZoomGenerator(demoimg, tile_size=tilesz, overlap=ovrlap, limit_bounds=True)
     lc = dz.level_count-1
     tmp=dz.get_tile(lc,(ni,nj))
-    #print(f"Done with tile {ni},{nj}")
     return np.array(tmp)
 
 """
@@ -129,7 +122,6 @@ func gettileslistdir:
 def gettileslistdir(dpath):
     listoftiles=[]
     for fname in sorted(os.listdir(dpath)):
-        #print(fname)
         if not fname[0] == 'g':
             tileid=(fname[0:-4]).split("_")
             listoftiles.append((int(tileid[0]),int(tileid[1])))
