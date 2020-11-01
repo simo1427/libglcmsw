@@ -1,11 +1,7 @@
-#TODO: implement verbosity levels
-#print statements verbosity levels check
 import openslide, openslide.deepzoom
-import os, sys
-import PIL
+import os
 import numpy as np
-from skimage import io as si
-from . import reconstruct
+
 
 """
 func tilegendisc:
@@ -29,10 +25,7 @@ func tilegendisc:
 """
 def tilegendisc(demoimg,tilesz,ovrlap,**kwargs):
     dz = openslide.deepzoom.DeepZoomGenerator(demoimg, tile_size=tilesz, overlap=ovrlap, limit_bounds=True)
-    try:
-        tmpdir=kwargs["tmpdir"]
-    except KeyError:
-        tmpdir="./.deepzoomtmp"
+    tmpdir=kwargs.get("tmpdir","./slidingwindowtmp")
     try:
         os.mkdir(tmpdir)
     except FileExistsError:
@@ -55,11 +48,7 @@ def tilegendisc(demoimg,tilesz,ovrlap,**kwargs):
     for i in range(ri):
         for j in range(rj):
             tmp=dz.get_tile(lc,(i,j))
-            #np.save((str(j)+"_"+str(i)+".npy"),np.array(tmp))
-            #tmp.save((str(j)+"_"+str(i)+".png"),format="png")#offloading to disc
-            np.save(f"{j}_{i}.npy",np.array(tmp))
-            #print(f"Done with {(i,j)}")
-        #print(f"Done with column {i}")
+            np.save(f"{i}_{j}.npy",np.array(tmp))
     os.chdir("..")
     return (ri, rj)
     
@@ -86,7 +75,6 @@ def singletileread(demoimg,tilesz,ovrlap,ni,nj):
     dz = openslide.deepzoom.DeepZoomGenerator(demoimg, tile_size=tilesz, overlap=ovrlap, limit_bounds=True)
     lc = dz.level_count-1
     tmp=dz.get_tile(lc,(ni,nj))
-    #print(f"Done with tile {ni},{nj}")
     return np.array(tmp)
 
 """
@@ -115,7 +103,7 @@ def gettileslistfull(openslideobj,tilesz,ovrlap):
     if height<(2*ovrlap+1):
         rj = rj-1
     print(ri, rj)
-    return [(j,i) for i in range(ri) for j in range(rj)]
+    return [(i,j) for i in range(ri) for j in range(rj)]
 
 """
 func gettileslistdir:
@@ -134,7 +122,6 @@ func gettileslistdir:
 def gettileslistdir(dpath):
     listoftiles=[]
     for fname in sorted(os.listdir(dpath)):
-        #print(fname)
         if not fname[0] == 'g':
             tileid=(fname[0:-4]).split("_")
             listoftiles.append((int(tileid[0]),int(tileid[1])))

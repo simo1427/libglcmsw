@@ -6,10 +6,6 @@ from skimage.color import rgb2gray
 import numpy as np
 import openslide
 
-# if __name__ == "__main__":
-#     print("This is only one part of the program. Please run main.py. \nExiting")
-#     exit()
-
 """
 func load:
     returns an OpenSlide object - the image file to be processed
@@ -57,10 +53,6 @@ func tonpyarr(osobj)
             downscale - factor by which the image will be downscaled
 """
 def tonpyarr(osobj, **kwargs):
-    downscalefactor = 1
-    try:
-        downscalefactor = kwargs["downscale"]
-    except KeyError:
-        pass
+    downscalefactor = kwargs.get("downscale", 1)
     w, h = osobj.level_dimensions[0]
     return np.array(osobj.get_thumbnail((round(w/downscalefactor),round(h/downscalefactor))))

@@ -1,8 +1,7 @@
-from skimage import io as si
-from skimage.util import img_as_ubyte
-from skimage.feature import greycomatrix,greycoprops
+
+from skimage.feature import greycomatrix
 import numpy as np
-import time
+
 import os
 from . import tilegen
 from ..render import cpu
@@ -28,8 +27,7 @@ func columnconcat:
 def columnconcat(dpath,col,ncols):
     im=[]
     for i in range(ncols):
-        im.append(np.load(dpath+f"/g{i}_{col}.npy"))
-        #print(i,col)
+        im.append(np.load(dpath+f"/g{col}_{i}.npy"))
     out=np.concatenate((im[0], im[1]), axis=0)
     for i in range(2,ncols,1):
         out=np.concatenate((out, im[i]),axis=0)
@@ -86,14 +84,15 @@ func fillblanks:
         save an image with the same naming of a processed tile, completely white, shape similar to the one of the original tile minus the window size and the color dimensions
 """
 def fillblanks(dpath,img,tilesz,ovrlap,listall,**kwargs):
-    #listall=tilegen.gettileslistfull(img,tilesz,ovrlap)
-    #tilegen.tilegendisc(img, tilesz, ovrlap,tmpdir="./deepzoomisch-down30x")
     try:
         prop=kwargs["prop"]
     except KeyError:
         prop="homogeneity"
+    angle = kwargs.get("angle", 0)
+    distance = kwargs.get("distance", 1)
+
     tmp = np.full((ovrlap*2+1, ovrlap*2+1),255, dtype=np.uint8)
-    glcm = greycomatrix(tmp, distances=[1], angles=[0], levels=256, symmetric=True, normed=True)
+    glcm = greycomatrix(tmp, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
     fill_value = cpu.glcmprop(glcm, prop)
     for fname in sorted(os.listdir(dpath)):
         if fname[0]=='g':
@@ -104,10 +103,7 @@ def fillblanks(dpath,img,tilesz,ovrlap,listall,**kwargs):
                 pass
     for tileid in listall:
         ni, nj=tileid
-        tmp=tilegen.singletileread(img,tilesz,ovrlap,nj,ni)
-        #print(tileid)
-        #print(tmp.shape)
-        #print(tmp[2*ovrlap:,2*ovrlap:,0].shape)
+        tmp=tilegen.singletileread(img,tilesz,ovrlap,ni,nj)
         try:
             np.save(dpath+f"/g{ni}_{nj}.npy", np.full_like(tmp[2*ovrlap:,2*ovrlap:,0],fill_value,dtype=np.float64))
         except:
