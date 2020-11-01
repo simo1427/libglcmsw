@@ -1,3 +1,9 @@
+1.2.4
+-updated keywords for package indexing in PyPI
+
+1.2.3
+- uploaded to PyPI
+
 1.2.2
 - added kwargs to change GLCM neighbourhood (one per image!)
 - switched to column-major tile addressing

@@ -5,7 +5,7 @@ with open("README.md","r") as fh:
 
 setuptools.setup(
     name='libglcmsw',
-    version='1.2.3',
+    version='1.2.4',
     author="Simeon Atanasov",
     author_email="simeon.a.atanasov@gmail.com",
     despcription="A module that is able to produce sliding window image of large files",
@@ -22,5 +22,6 @@ setuptools.setup(
         "Topic :: Scientific/Engineering :: Image Processing"
     ],
     python_requires='>3.7',
+    keywords='glcm sliding window parallel computationalimaging',
     install_requires=['scikit-image','openslide-python']
 )
