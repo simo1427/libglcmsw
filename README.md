@@ -38,9 +38,9 @@ see DOCUMENTATION.md
 ## Installation
 After installing the openslide binaries (see [Distribution packages, respectively Windows binaries](https://openslide.org/download/)),
 
-```pip3 install dist/libglcmsw-1.0.0-py3-none-any.whl``` (Linux)
+```pip3 install libglcmsw``` (Linux)
 
-```python -m pip install dist/libglcmsw-1.0.0-py3-none-any.whl``` (Windows)
+```python -m pip install libglcmsw``` (Windows)
 
 ## Building binaries
 
