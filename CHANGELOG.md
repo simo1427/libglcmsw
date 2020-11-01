@@ -1,5 +1,6 @@
 1.2.5
 - updated description of package in PyPI
+
 1.2.4
 - updated keywords for package indexing in PyPI
 
