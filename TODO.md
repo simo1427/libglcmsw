@@ -6,5 +6,5 @@
     - [X] render.cpu
     - [X] tiling.reconstruct
 - [X] switch to column-major tile addressing
-- [ ] Update classification in PyPI - change OS-independent to separate Windows and POSIX::Linux (tests on macOS needed)
+- [X] Update classification in PyPI - change OS-independent to separate Windows and POSIX::Linux (tests on macOS needed)
 - [ ] generate a file with data about the generated image - selection, processed tiles, path to image, etc
