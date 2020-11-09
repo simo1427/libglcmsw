@@ -8,3 +8,9 @@
 - [X] switch to column-major tile addressing
 - [X] Update classification in PyPI - change OS-independent to separate Windows and POSIX::Linux (tests on macOS needed)
 - [ ] generate a file with data about the generated image - selection, processed tiles, path to image, etc
+- [ ] KeyboardInterrupt try... except..
+    - [ ] class SlidingWindow
+    - [ ] demo scripts
+        - [ ] runtilingrenderer
+        - [ ] rasterrender
+        - [ ] maskselector
