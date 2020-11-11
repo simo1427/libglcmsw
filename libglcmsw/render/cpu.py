@@ -86,30 +86,53 @@ def singletilecpu(coords, path, windowsz, prop,angle, distance):
 
   return glcm_hom
 
-
 """
-func singletilecpudebug:
-  returns nothing
+func singletilecpuperfmon:
+  returns a float64 numpy array - result from GLCM Sliding Window
 
   Arguments:
   coords - tuple containing row and column of the tile
   path - directory containing tile files
   windowsz - size of window for Sliding Window analysis
   prop - property of GLCM to be calculated
+  angle - angle of GLCM (0,45,90,...)
+  distance - distance of GLCM
 
   Process:
   parse tile coords;
   read tile image;
   calculate size of returned array (size of tile minus the window size, if windowsz is odd, it increases the dimensions of the resulting image by one)
+  iterate through the input image:
+    generate a temporary array, which would contain the homogeneity values for the row
+    parse a part of the image with the given window size
+    generate a normalised GLCM
+    calculate homogeneity and store the value in the respective column
+    store the temporary array in the respective row of the array with the results
 
   Usage:
-  used to debug function libglcmsw.render.tilerenderlist
+  in libglcmsw.render.cpu.tilerenderlist
 """
-def singletilecpudebug(coords, path, windowsz, prop):
-  begintotal = time.perf_counter()
+def singletilecpuperfmon(coords, path, windowsz, prop,angle, distance):
   ni,nj=coords
+  im=img_as_ubyte(rgb2gray(np.load(path+f"/{ni}_{nj}.npy")))
+  ri=len(im[:,0])-windowsz+windowsz%2
+  rj=len(im[0,:])-windowsz+windowsz%2
+  glcm_hom=np.zeros((ri,rj))
+  i=0
+  j=0
+  begintotal = time.perf_counter()
+  for i in range(ri):
+    tmp = np.empty((rj), dtype=np.float32)
+    for j in range(rj):
+      img = im[i:i + windowsz, j:j + windowsz]
+      glcm = greycomatrix(img, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
+      tmp[j]=glcmprop(glcm, prop)
+    glcm_hom[i]=tmp
+    #print(f"Done with {i}")
   finishtotal = time.perf_counter()
   print(f'Processed tile ({ni},{nj}) in {round(finishtotal-begintotal, 3)} seconds')
+
+  return (glcm_hom, finishtotal-begintotal)
 
 
 """
@@ -161,8 +184,67 @@ def tilerenderlist(dpath,inptile,windowsz,**kwargs):
         break
   
   finishtotal = time.perf_counter()
-  return finishtotal-begintotal
   print(f'Ended in {round(finishtotal-begintotal, 3)}')
+
+
+"""
+func tilerenderlistperfmon
+  returns nothing
+
+  Arguments:
+  dpath - path to tiles directory
+  inptile - list of tuples
+  windowsz - size of window for sliding window image generation
+  **kwargs:
+    ncores - number of cores to be used for rendering
+    prop - property to be calculated (for GLCM)
+    angle - angle of GLCM (0,45,90,...)
+    distance - distance of GLCM
+
+  Process:
+  define number of cores
+    if the number of cores is larger than the number of items to be rendered, the workers are reduced to the length of the list
+  define property to be calculated
+  create a ProcessPoolExecutor:
+    get a list for the arguments to be passed to the iterated function (libglcmsw.render.cpu.singletilecpu)
+    create a map
+    iterate through the list of input tiles (the same size as the number of generators in results!)
+    parse coords from tuple
+    save the processed image with the prefix 'g' - important for libglcmsw.io.crashrecovery.getunprocessedtiles() and libglcmsw.tiling.reconstruct.*
+"""
+
+
+def tilerenderlistperfmon(dpath, inptile, windowsz, **kwargs):
+  workers = kwargs.get("ncores", multiprocessing.cpu_count() // 2 - 1)
+  if multiprocessing.cpu_count() < workers or workers < 0:
+    raise ValueError("Invalid number of workers")
+  prop = kwargs.get("prop", "homogeneity")
+  if len(inptile) < workers and len(inptile):
+    workers = len(inptile)
+
+  angle = kwargs.get("angle", 0)
+  distance = kwargs.get("distance", 1)
+
+  print(f"Using {workers} cores for rendering")
+  total=0
+  begintotal = time.perf_counter()
+  with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
+
+    results = executor.map(singletilecpu, inptile, itertools.repeat(dpath), itertools.repeat(windowsz),
+                           itertools.repeat(prop), itertools.repeat(angle), itertools.repeat(distance))
+    for p in inptile:
+      try:
+        ni, nj = p
+        glcm, tmp = next(results)
+        np.save(dpath + f"/g{ni}_{nj}.npy", glcm)
+        total+=tmp
+      except StopIteration:
+        break
+
+  finishtotal = time.perf_counter()
+  print(f'Ended in {round(finishtotal - begintotal, 3)}')
+  return (finishtotal-endtotal, total)
+
 
 
 """
