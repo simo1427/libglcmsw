@@ -230,20 +230,20 @@ def tilerenderlistperfmon(dpath, inptile, windowsz, **kwargs):
   begintotal = time.perf_counter()
   with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
 
-    results = executor.map(singletilecpu, inptile, itertools.repeat(dpath), itertools.repeat(windowsz),
+    results = executor.map(singletilecpuperfmon, inptile, itertools.repeat(dpath), itertools.repeat(windowsz),
                            itertools.repeat(prop), itertools.repeat(angle), itertools.repeat(distance))
     for p in inptile:
       try:
         ni, nj = p
         glcm, tmp = next(results)
         np.save(dpath + f"/g{ni}_{nj}.npy", glcm)
-        total+=tmp
+        total=total+tmp
       except StopIteration:
         break
 
   finishtotal = time.perf_counter()
-  print(f'Ended in {round(finishtotal - begintotal, 3)}')
-  return (finishtotal-endtotal, total)
+  print(f'Ended in {finishtotal - begintotal}')
+  print(total)
 
 
 

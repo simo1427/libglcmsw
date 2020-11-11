@@ -10,7 +10,7 @@ if __name__ == "__main__":
     tmpdir="./.tilingtmp"
     WINDOWSZ=13 
     TILESZ=125
-    workers=4
+    workers=5
     output="./output.tif"
     #End of input data
     
@@ -20,9 +20,4 @@ if __name__ == "__main__":
     if not listoftiles:
         print("No tiles to render.")
     else:
-        libglcmsw.render.cpu.tilerenderlist(tmpdir,listoftiles,WINDOWSZ,ncores=workers, prop=prop)
-        libglcmsw.tiling.reconstruct.fillblanks(tmpdir, img, TILESZ, WINDOWSZ // 2,
-                                                libglcmsw.tiling.tilegen.gettileslistfull(img, TILESZ, WINDOWSZ // 2),
-                                                prop=prop)
-    final=libglcmsw.tiling.reconstruct.allconcat(tmpdir,w,h)
-    si.imsave(output, final.astype(np.float32))
+        libglcmsw.render.cpu.tilerenderlistperfmon(tmpdir,listoftiles,WINDOWSZ,ncores=workers, prop=prop)
