@@ -161,6 +161,7 @@ def tilerenderlist(dpath,inptile,windowsz,**kwargs):
         break
   
   finishtotal = time.perf_counter()
+  return finishtotal-begintotal
   print(f'Ended in {round(finishtotal-begintotal, 3)}')
 
 
