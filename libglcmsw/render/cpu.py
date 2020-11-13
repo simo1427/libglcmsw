@@ -25,7 +25,7 @@ func glcmprop:
       return the entropy value
   
   Usage:
-    render.singletilecpu
+    render.singlecore
     tilegen.reconstruct.fillblanks
 """
 
@@ -39,7 +39,7 @@ def glcmprop(glcm, prop):
 
 
 """
-func singletilecpu:
+func singlecore:
   returns a float64 numpy array - result from GLCM Sliding Window
 
   Arguments:
@@ -64,53 +64,29 @@ func singletilecpu:
   Usage:
   in libglcmsw.render.cpu.tilerenderlist
 """
-def singletilecpu(coords, path, windowsz, prop,angle, distance):
-  ni,nj=coords
-  im=img_as_ubyte(rgb2gray(np.load(path+f"/{ni}_{nj}.npy")))
-  ri=len(im[:,0])-windowsz+windowsz%2
-  rj=len(im[0,:])-windowsz+windowsz%2
-  glcm_hom=np.zeros((ri,rj))
-  i=0
-  j=0
-  begintotal = time.perf_counter()
-  for i in range(ri):
-    tmp = np.empty((rj), dtype=np.float32)
-    for j in range(rj):
-      img = im[i:i + windowsz, j:j + windowsz]
-      glcm = greycomatrix(img, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
-      tmp[j]=glcmprop(glcm, prop)
-    glcm_hom[i]=tmp
-    #print(f"Done with {i}")
-  finishtotal = time.perf_counter()
-  print(f'Processed tile ({ni},{nj}) in {round(finishtotal-begintotal, 3)} seconds')
-
-  return glcm_hom
-
-
-"""
-func singletilecpudebug:
-  returns nothing
-
-  Arguments:
-  coords - tuple containing row and column of the tile
-  path - directory containing tile files
-  windowsz - size of window for Sliding Window analysis
-  prop - property of GLCM to be calculated
-
-  Process:
-  parse tile coords;
-  read tile image;
-  calculate size of returned array (size of tile minus the window size, if windowsz is odd, it increases the dimensions of the resulting image by one)
-
-  Usage:
-  used to debug function libglcmsw.render.tilerenderlist
-"""
-def singletilecpudebug(coords, path, windowsz, prop):
-  begintotal = time.perf_counter()
-  ni,nj=coords
-  finishtotal = time.perf_counter()
-  print(f'Processed tile ({ni},{nj}) in {round(finishtotal-begintotal, 3)} seconds')
-
+def singlecore(tileslist, path, windowsz, prop, angle, distance):
+  print(tileslist)
+  processed=[]
+  for ni, nj in tileslist:
+    im=img_as_ubyte(rgb2gray(np.load(path+f"/{ni}_{nj}.npy")))
+    ri=len(im[:,0])-windowsz+windowsz%2
+    rj=len(im[0,:])-windowsz+windowsz%2
+    glcm_hom=np.zeros((ri,rj))
+    i=0
+    j=0
+    begintotal = time.perf_counter()
+    for i in range(ri):
+      tmp = np.empty((rj), dtype=np.float32)
+      for j in range(rj):
+        img = im[i:i + windowsz, j:j + windowsz]
+        glcm = greycomatrix(img, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
+        tmp[j]=glcmprop(glcm, prop)
+      glcm_hom[i]=tmp
+      #print(f"Done with {i}")
+    finishtotal = time.perf_counter()
+    print(f'Processed tile ({ni},{nj}) in {round(finishtotal-begintotal, 3)} seconds')
+    processed.append(glcm_hom)
+  return zip(processed, tileslist)
 
 """
 func tilerenderlist
@@ -131,7 +107,7 @@ func tilerenderlist
     if the number of cores is larger than the number of items to be rendered, the workers are reduced to the length of the list
   define property to be calculated
   create a ProcessPoolExecutor:
-    get a list for the arguments to be passed to the iterated function (libglcmsw.render.cpu.singletilecpu)
+    get a list for the arguments to be passed to the iterated function (libglcmsw.render.cpu.singlecore)
     create a map
     iterate through the list of input tiles (the same size as the number of generators in results!)
     parse coords from tuple
@@ -147,19 +123,18 @@ def tilerenderlist(dpath,inptile,windowsz,**kwargs):
 
   angle=kwargs.get("angle",0)
   distance=kwargs.get("distance",1)
-
+  percoretiles=len(inptile)//workers
   print(f"Using {workers} cores for rendering")
   begintotal = time.perf_counter()
   with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-
-    results = executor.map(singletilecpu, inptile, itertools.repeat(dpath),itertools.repeat(windowsz),itertools.repeat(prop),itertools.repeat(angle),itertools.repeat(distance))
-    for p in inptile: 
-      try:
-        ni, nj=p
-        np.save(dpath+f"/g{ni}_{nj}.npy",next(results))
-      except StopIteration:
-        break
-  
+    futures=[]
+    for cores in range(workers-1):
+      futures.append(executor.submit(singlecore, inptile[percoretiles*cores:percoretiles*(cores+1)], dpath, windowsz, prop, angle, distance))
+    futures.append(executor.submit(singlecore, inptile[percoretiles*(workers-1):], dpath, windowsz, prop, angle, distance))
+    for future in concurrent.futures.as_completed(futures):
+      for tile, coords in future.result():
+        ni, nj = coords
+        np.save(dpath + f"/g{ni}_{nj}", tile)
   finishtotal = time.perf_counter()
   print(f'Ended in {round(finishtotal-begintotal, 3)}')
 

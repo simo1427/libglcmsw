@@ -7,10 +7,10 @@ if __name__ == "__main__":
     #Input data
     img = libglcmsw.io.openimg.load("./input.tif")
     prop='homogeneity'
-    tmpdir="./.tilingtmp"
+    tmpdir="./tilingtmp"
     WINDOWSZ=13 
     TILESZ=125
-    workers=4
+    workers=6
     output="./output.tif"
     #End of input data
     
