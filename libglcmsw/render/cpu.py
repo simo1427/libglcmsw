@@ -39,6 +39,95 @@ def glcmprop(glcm, prop):
 
 
 """
+func glcmpropnew:
+  returns a float64 - the value of the desired property
+
+  Arguments:
+    glcm - a normalized GLCM
+    prop - a string containing the desired property
+
+  Process:
+    if the property is supported by scikit-image, use greycoprops
+    elif property is entropy:
+      create a copy of the glcm, in which zeros are replaced with ones #avoiding runtimewarnings from numpy
+      return the entropy value
+
+  Usage:
+    render.singletilecpu
+    tilegen.reconstruct.fillblanks
+"""
+
+def glcmpropnew(glcm, prop):
+  if prop in ["ASM", "energy", "correlation"]:
+    pass
+  if prop == "contrast":
+    width, height = glcm.shape
+    for i in range(width):
+      for j in range(height):
+        glcm[i,j] = glcm[i,j]*(i-j)*(i-j)
+    return np.sum(glcm, axis=None)
+
+  elif prop == "dissimilarity":
+    width, height = glcm.shape
+    for i in range(width):
+      for j in range(height):
+        glcm[i,j] = glcm[i,j]*np.abs(i-j)
+    return np.sum(glcm, axis=None)
+
+  elif prop == "homogeneity":
+    width, height = glcm.shape
+    for i in range(width):
+      for j in range(height):
+        glcm[i,j] = glcm[i,j]/(1+(i-j)**2)
+    return np.sum(glcm, axis=None)
+
+  elif prop in ["ASM", "energy"]:
+    width, height = glcm.shape
+    for i in range(width):
+      for j in range(height):
+        glcm[i,j] = glcm[i,j]**2
+    if prop=="ASM":
+      return np.sum(glcm, axis=None)
+    else:
+      return np.sqrt(np.sum(glcm, axis=None))
+
+  elif prop == 'entropy':
+    glcm2 = glcm
+    glcm2[glcm2 == 0] = 1
+    return np.sum(glcm*(-np.log(glcm2)), axis=None)
+
+def oneglcm(img, dist, angle, bitdepth, normed=False, symmetric=False):
+  glcm = np.zeros((bitdepth, bitdepth), dtype=np.float64)
+  xdims,ydims = img.shape
+  xstart=0; xend=xdims; ystart=0; yend=ydims
+  x_neighbour=round(dist*np.sin(angle))
+  y_neighbour=round(dist*np.cos(angle))
+  if x_neighbour<0:
+    xstart+=-x_neighbour
+  elif x_neighbour>=0:
+    xend=xdims-x_neighbour
+  if y_neighbour<0:
+    ystart+=-y_neighbour
+  elif y_neighbour>=0:
+    yend=ydims-y_neighbour
+  if not x_neighbour and not y_neighbour:
+    raise ValueError("Invalid neighbourhood")
+  for i in range(xstart,xend,1):
+    for j in range(ystart, yend, 1):
+      ref=img[i,j]
+      val=img[i+x_neighbour, j+y_neighbour]
+      glcm[ref,val]+=1
+  if not normed and not symmetric:
+    return glcm
+  if symmetric:
+    glcm = glcm+np.transpose(glcm)
+  if normed:
+    div=np.sum(glcm)
+    glcm = np.true_divide(glcm, div)
+  return glcm
+
+
+"""
 func singletilecpu:
   returns a float64 numpy array - result from GLCM Sliding Window
 
