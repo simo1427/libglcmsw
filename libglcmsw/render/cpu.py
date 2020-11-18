@@ -57,16 +57,16 @@ func glcmpropnew:
     render.singletilecpu
     tilegen.reconstruct.fillblanks
 """
-@njit
 def glcmpropnew(glcm, prop):
   if prop == "correlation":
     pass
   if prop == "contrast":
     width, height = glcm.shape
+    glcm2=np.zeros(glcm.shape)
     for i in range(width):
       for j in range(height):
-        glcm[i,j] = glcm[i,j]*(i-j)*(i-j)
-    return np.sum(glcm, axis=None)
+        glcm2[i,j]=glcm[i,j]*((i-j)**2)
+    return np.sum(glcm2, axis=None)
 
   elif prop == "dissimilarity":
     width, height = glcm.shape
@@ -97,6 +97,7 @@ def glcmpropnew(glcm, prop):
     glcm2[glcm2 == 0] = 1
     return np.sum(glcm*(-np.log(glcm2)), axis=None)
 
+@njit(nogil=True)
 def oneglcm(img, dist, angle, bitdepth, normed=False, symmetric=False):
   glcm = np.zeros((bitdepth, bitdepth), dtype=np.float64)
   xdims,ydims = img.shape
@@ -153,26 +154,89 @@ func singletilecpunew:
   Usage:
   in libglcmsw.render.cpu.tilerenderlist
 """
-@njit
-def singletilecpunew(coords, path, windowsz, prop,angle, distance):
-  ni,nj=coords
-  im=img_as_ubyte(rgb2gray(np.load(path+f"/{ni}_{nj}.npy")))
+#@njit(nogil=True)
+def singletilecpunew(im, windowsz, prop,angle, dist,bitdepth):
+  #ni,nj=coords
   ri=len(im[:,0])-windowsz+windowsz%2
   rj=len(im[0,:])-windowsz+windowsz%2
   glcm_hom=np.zeros((ri,rj))
   i=0
   j=0
-  begintotal = time.perf_counter()
-  for i in range(ri):
-    tmp = np.empty((rj), dtype=np.float32)
-    for j in range(rj):
-      img = im[i:i + windowsz, j:j + windowsz]
-      glcm = oneglcm(img, distance, angle, 256, symmetric=True, normed=True)
-      tmp[j]=glcmpropnew(glcm, prop)
-    glcm_hom[i]=tmp
-    #print(f"Done with {i}")
-  finishtotal = time.perf_counter()
-  print(f'Processed tile ({ni},{nj}) in {round(finishtotal-begintotal, 3)} seconds')
+  for ii in range(ri):
+    tmp = np.empty((rj,), dtype=np.float32)
+    for jj in range(rj):
+      img = im[ii:ii + windowsz, jj:jj + windowsz]
+      glcm = np.zeros((bitdepth, bitdepth), dtype=np.float64)
+      xdims, ydims = img.shape
+      xstart = 0;
+      xend = xdims;
+      ystart = 0;
+      yend = ydims
+      x_neighbour = round(dist * np.sin(angle))
+      y_neighbour = round(dist * np.cos(angle))
+      if x_neighbour < 0:
+        xstart += -x_neighbour
+      elif x_neighbour >= 0:
+        xend = xdims - x_neighbour
+      if y_neighbour < 0:
+        ystart += -y_neighbour
+      elif y_neighbour >= 0:
+        yend = ydims - y_neighbour
+      if not x_neighbour and not y_neighbour:
+        raise ValueError("Invalid neighbourhood")
+      for i in range(xstart, xend, 1):
+        for j in range(ystart, yend, 1):
+          ref = img[i, j]
+          val = img[i + x_neighbour, j + y_neighbour]
+          glcm[ref, val] += 1
+      glcmtr=np.empty_like(glcm)
+      for i in range(bitdepth):
+        for j in range(bitdepth):
+          glcmtr[i,j]=glcm[j,i]
+      glcm = glcm + glcmtr
+      div = 0
+      for i in range(bitdepth):
+        for j in range(bitdepth):
+          div+=glcm[i,j]
+      for i in range(bitdepth):
+        for j in range(bitdepth):
+          glcm[i, j]=glcm[i,j]/div
+      val=0
+      if prop == "contrast":
+        width, height = glcm.shape
+        for i in range(width):
+          for j in range(height):
+            val+= glcm[i, j] * ((i - j) ** 2)
+
+      elif prop == "dissimilarity":
+        width, height = glcm.shape
+        for i in range(width):
+          for j in range(height):
+            val+= glcm[i, j] * np.abs(i - j)
+
+      elif prop == "homogeneity":
+        width, height = glcm.shape
+        for i in range(width):
+          for j in range(height):
+            val+= glcm[i, j] / (1 + (i - j) ** 2)
+
+      elif prop in ["ASM", "energy"]:
+        width, height = glcm.shape
+        for i in range(width):
+          for j in range(height):
+            val += glcm[i, j] ** 2
+        if prop=="energy":
+          val=np.sqrt(val)
+
+      elif prop == 'entropy':
+        glcm2 = glcm
+        for i in range(width):
+          for j in range(height):
+            if glcm2[i,j]==0:
+              glcm2[i,j]=1
+            val+=glcm[i,j]*(-np.log(glcm2[i,j]))
+      tmp[jj]=val
+    glcm_hom[ii]=tmp
 
   return glcm_hom
 
@@ -215,15 +279,20 @@ def tilerenderlistnew(dpath, inptile, windowsz, **kwargs):
   distance = kwargs.get("distance", 1)
 
   print(f"Using {workers} cores for rendering")
+  tiles=[]
+  for tile in inptile:
+    ni, nj = tile
+    tiles.append(img_as_ubyte(rgb2gray(np.load(dpath + f"/{ni}_{nj}.npy"))))
   begintotal = time.perf_counter()
   with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
 
-    results = executor.map(singletilecpunew, inptile, itertools.repeat(dpath), itertools.repeat(windowsz),
-                           itertools.repeat(prop), itertools.repeat(angle), itertools.repeat(distance))
+    results = executor.map(singletilecpunew, tiles, itertools.repeat(windowsz),
+                           itertools.repeat(prop), itertools.repeat(angle), itertools.repeat(distance), itertools.repeat(256))
     for p in inptile:
       try:
         ni, nj = p
         np.save(dpath + f"/g{ni}_{nj}.npy", next(results))
+        print(p)
       except StopIteration:
         break
 

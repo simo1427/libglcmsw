@@ -20,7 +20,7 @@ if __name__ == "__main__":
     if not listoftiles:
         print("No tiles to render.")
     else:
-        libglcmsw.render.cpu.tilerenderlist(tmpdir,listoftiles,WINDOWSZ,ncores=workers, prop=prop)
+        libglcmsw.render.cpu.tilerenderlistnew(tmpdir,listoftiles,WINDOWSZ,ncores=workers, prop=prop)
         libglcmsw.tiling.reconstruct.fillblanks(tmpdir, img, TILESZ, WINDOWSZ // 2,
                                                 libglcmsw.tiling.tilegen.gettileslistfull(img, TILESZ, WINDOWSZ // 2),
                                                 prop=prop)
