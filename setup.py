@@ -8,7 +8,7 @@ setuptools.setup(
     version='1.2.6',
     author="Simeon Atanasov",
     author_email="simeon.a.atanasov@gmail.com",
-    description="A module that is able to produce sliding window image of large files",
+    description="A module that is able to produce GLCM sliding window images of large files",
     long_description=long_description,
     long_description_content_type='text/markdown',
     url="https://github.com/simo1427/libglcmsw",
