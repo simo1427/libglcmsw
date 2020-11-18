@@ -18,8 +18,8 @@ setuptools.setup(
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
-        "Operating System :: Microsoft :: Windows",
         "Operating System :: POSIX :: Linux",
+        "Operating System :: Microsoft :: Windows",
         "Topic :: Scientific/Engineering :: Image Processing"
     ],
     python_requires='>3.7',
