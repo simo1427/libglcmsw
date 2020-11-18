@@ -5,7 +5,7 @@ with open("README.md","r") as fh:
 
 setuptools.setup(
     name='libglcmsw',
-    version='1.2.5',
+    version='1.2.6',
     author="Simeon Atanasov",
     author_email="simeon.a.atanasov@gmail.com",
     description="A module that is able to produce sliding window image of large files",
@@ -18,7 +18,8 @@ setuptools.setup(
         "Development Status :: 5 - Production/Stable",
         "Environment :: Console",
         "License :: OSI Approved :: GNU Lesser General Public License v3 (LGPLv3)",
-        "Operating System :: OS Independent",
+        "Operating System :: Microsoft :: Windows",
+        "Operating System :: POSIX :: Linux",
         "Topic :: Scientific/Engineering :: Image Processing"
     ],
     python_requires='>3.7',
