@@ -230,6 +230,7 @@ def singletilecpunew(im, windowsz, prop,angle, dist,bitdepth):
 
       elif prop == 'entropy':
         glcm2 = glcm
+        width, height = glcm.shape
         for i in range(width):
           for j in range(height):
             if glcm2[i,j]==0:
