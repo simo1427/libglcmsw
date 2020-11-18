@@ -154,7 +154,7 @@ func singletilecpunew:
   Usage:
   in libglcmsw.render.cpu.tilerenderlist
 """
-#@njit(nogil=True)
+@njit(nogil=True)
 def singletilecpunew(im, windowsz, prop,angle, dist,bitdepth):
   #ni,nj=coords
   ri=len(im[:,0])-windowsz+windowsz%2
