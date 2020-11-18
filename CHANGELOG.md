@@ -1,3 +1,6 @@
+1.2.6
+- updated OS classifiers
+
 1.2.5
 - updated description of package in PyPI
 
