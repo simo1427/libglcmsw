@@ -24,5 +24,5 @@ setuptools.setup(
     ],
     python_requires='>3.7',
     keywords='glcm sliding window parallel computationalimaging',
-    install_requires=['scikit-image','openslide-python']
+    install_requires=['scikit-image','openslide-python','numba']
 )
