@@ -11,7 +11,7 @@ if __name__ == "__main__":
     WINDOWSZ=13
     TILESZ=125
     workers=5
-    output=f"./outputmasked-colmajor.tif"
+    output=f"./outputmasked.tif"
     angle=0
     distance=1
     #End of input data

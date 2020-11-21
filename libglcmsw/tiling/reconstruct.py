@@ -92,8 +92,7 @@ def fillblanks(dpath,img,tilesz,ovrlap,listall,**kwargs):
     distance = kwargs.get("distance", 1)
 
     tmp = np.full((ovrlap*2+1, ovrlap*2+1),255, dtype=np.uint8)
-    glcm = greycomatrix(tmp, distances=[distance], angles=[angle], levels=256, symmetric=True, normed=True)
-    fill_value = cpu.glcmprop(glcm, prop)
+    fill_value = cpu.glcmprop(cpu.oneglcm(tmp, distance, angle, 256, symmetric=True, normed=True), prop)
     for fname in sorted(os.listdir(dpath)):
         if fname[0]=='g':
             tileid=(fname[1:-4]).split("_")
