@@ -153,8 +153,6 @@ def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
   ri=len(im[:,0])-windowsz+windowsz%2
   rj=len(im[0,:])-windowsz+windowsz%2
   glcm_hom=np.zeros((ri,rj))
-  i=0
-  j=0
   for ii in range(ri):
     tmp = np.empty((rj,), dtype=np.float32)
     for jj in range(rj):
@@ -164,6 +162,7 @@ def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
       xstart = 0;
       xend = xdims;
       ystart = 0;
+      div=0
       yend = ydims
       x_neighbour = round(dist * np.sin(angle))
       y_neighbour = round(dist * np.cos(angle))
@@ -179,10 +178,21 @@ def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
         raise ValueError("Invalid neighbourhood")
       for i in range(xstart, xend, 1):
         for j in range(ystart, yend, 1):
-          ref = img[i, j]
-          val = img[i + x_neighbour, j + y_neighbour]
-          glcm[ref, val] += 1
-      glcmtr=np.empty_like(glcm)
+          glcm[img[i, j], img[i + x_neighbour, j + y_neighbour]] += 1
+          div += 1
+      # glcm = glcm+np.transpose(glcm)
+      for i in range(glcm.shape[0]):
+        for j in range(i + 1, glcm.shape[1]):
+          tmptr = glcm[j, i]
+          glcm[j, i] += glcm[i, j]
+          glcm[i, j] += tmptr
+        glcm[i, i] = glcm[i, i] * 2
+      # glcm = np.true_divide(glcm, 2*sum)
+      div *= 2
+      for i in range(glcm.shape[0]):
+        for j in range(glcm.shape[1]):
+          glcm[i, j] /= div
+      """glcmtr=np.empty_like(glcm)
       for i in range(bitdepth):
         for j in range(bitdepth):
           glcmtr[i,j]=glcm[j,i]
@@ -193,7 +203,7 @@ def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
           div+=glcm[i,j]
       for i in range(bitdepth):
         for j in range(bitdepth):
-          glcm[i, j]=glcm[i,j]/div
+          glcm[i, j]=glcm[i,j]/div"""
       #####
       #calculate property
       val=0
@@ -330,6 +340,7 @@ def singleline(ii,rj,im,prop,windowsz,angle, dist, bitdepth): # processingi of 1
     xend = xdims;
     ystart = 0;
     yend = ydims
+    div=0
     x_neighbour = round(dist * np.sin(angle))
     y_neighbour = round(dist * np.cos(angle))
     if x_neighbour < 0:
@@ -342,23 +353,23 @@ def singleline(ii,rj,im,prop,windowsz,angle, dist, bitdepth): # processingi of 1
       yend = ydims - y_neighbour
     if not x_neighbour and not y_neighbour:
       raise ValueError("Invalid neighbourhood")
+
     for i in range(xstart, xend, 1):
       for j in range(ystart, yend, 1):
-        ref = img[i, j]
-        val = img[i + x_neighbour, j + y_neighbour]
-        glcm[ref, val] += 1
-    glcmtr = np.empty_like(glcm)
-    for i in range(bitdepth):
-      for j in range(bitdepth):
-        glcmtr[i, j] = glcm[j, i]
-    glcm = glcm + glcmtr
-    div = 0
-    for i in range(bitdepth):
-      for j in range(bitdepth):
-        div += glcm[i, j]
-    for i in range(bitdepth):
-      for j in range(bitdepth):
-        glcm[i, j] = glcm[i, j] / div
+        glcm[img[i, j], img[i + x_neighbour, j + y_neighbour]] += 1
+        div += 1
+    # glcm = glcm+np.transpose(glcm)
+    for i in range(glcm.shape[0]):
+      for j in range(i + 1, glcm.shape[1]):
+        tmptr = glcm[j, i]
+        glcm[j, i] += glcm[i, j]
+        glcm[i, j] += tmptr
+      glcm[i, i] = glcm[i, i] * 2
+    # glcm = np.true_divide(glcm, 2*sum)
+    div *= 2
+    for i in range(glcm.shape[0]):
+      for j in range(glcm.shape[1]):
+        glcm[i, j] /= div
     #####
     # calculate property
     val = 0
