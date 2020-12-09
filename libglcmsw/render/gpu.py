@@ -9,37 +9,9 @@ from skimage.util import img_as_ubyte
 from skimage.color import rgb2gray
 import itertools
 import time
-from . import cpu
+from . import cpu, nvidia
 
 def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
-  from numba import cuda
-
-  @cuda.jit("void(float32[:,:], uint8[:,:], uint8, uint8, float32[:])")
-  def glcmgen_gpu(glcm, img, x_neighbour, y_neighbour, sum):
-    xdims, ydims = img.shape
-    xstart = 0
-    xend = xdims
-    ystart = 0
-    yend = ydims
-    i, j = cuda.grid(2)
-    if x_neighbour < 0:
-      xstart += -x_neighbour
-    elif x_neighbour >= 0:
-      xend = xdims - x_neighbour
-    if y_neighbour < 0:
-      ystart += -y_neighbour
-    elif y_neighbour >= 0:
-      yend = ydims - y_neighbour
-    if (i >= xstart and i < xend) and ((j >= ystart and j < yend)):
-      ref = img[i, j]
-      val = img[i + x_neighbour, j + y_neighbour]
-      cuda.syncthreads()
-      cuda.atomic.add(glcm, (ref, val), 1)
-      # glcm[i,j]+=1
-      cuda.atomic.add(sum, 0, 1)
-      # cuda.syncthreads()
-    else:
-      return
 
   #ni,nj=coords
   ri=len(im[:,0])-windowsz+windowsz%2
@@ -51,41 +23,7 @@ def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
     tmp = np.empty((rj,), dtype=np.float32)
     for jj in range(rj):
       img = np.ascontiguousarray(im[ii:ii + windowsz, jj:jj + windowsz])#extract part of the image
-      glcm = np.zeros((bitdepth, bitdepth), dtype=np.float64)#calculate glcm
-      xdims, ydims = img.shape
-      xstart = 0;
-      xend = xdims;
-      ystart = 0;
-      yend = ydims
-      x_neighbour = round(dist * np.sin(angle))
-      y_neighbour = round(dist * np.cos(angle))
-      threadsperblock = (8, 8)
-      blockspergrid_x = math.ceil(img.shape[0] / threadsperblock[0])
-      blockspergrid_y = math.ceil(img.shape[1] / threadsperblock[1])
-      blockspergrid = (blockspergrid_x, blockspergrid_y)
-      # print(blockspergrid)
-      glcm = np.zeros((256, 256), dtype=np.float32)
-      glcm_dev = cuda.to_device(glcm)
-      img_dev = cuda.to_device(img)
-      sum = np.zeros((1,), dtype=np.float32)
-      sum_dev = cuda.to_device(sum)
-      glcmgen_gpu[blockspergrid, threadsperblock](glcm_dev, img_dev, x_neighbour, y_neighbour, sum_dev)
-      glcm = glcm_dev.copy_to_host()
-      glcmtr=np.empty_like(glcm)
-      for i in range(bitdepth):
-        for j in range(bitdepth):
-          glcmtr[i,j]=glcm[j,i]
-      glcm = glcm + glcmtr
-      div = 0
-      for i in range(bitdepth):
-        for j in range(bitdepth):
-          div+=glcm[i,j]
-      for i in range(bitdepth):
-        for j in range(bitdepth):
-          glcm[i, j]=glcm[i,j]/div
-      #####
-      #calculate property
-      val=cpu.glcmprop(glcm, prop)
+      val=nvidia.singleval(img, )
       tmp[jj]=val
     glcm_hom[ii]=tmp
     print(ii)
