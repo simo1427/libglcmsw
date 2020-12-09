@@ -60,11 +60,7 @@ def feature_gpu(glcm, prop, glcm_edit):
 
 
 def singleval(img, prop, dist, angle, bitdepth):
-    img = img_as_ubyte(rgb2gray(np.load("./0_0.npy")))
     #print(img.shape)
-    dist=1
-    angle=0
-    bitdepth=256
     x_neighbour = round(dist * np.sin(angle))
     y_neighbour = round(dist * np.cos(angle))
 
@@ -72,20 +68,21 @@ def singleval(img, prop, dist, angle, bitdepth):
     blockspergrid_x=math.ceil(img.shape[0]/threadsperblock[0])
     blockspergrid_y=math.ceil(img.shape[1]/threadsperblock[1])
     blockspergrid = (blockspergrid_x, blockspergrid_y)
-    glcm=np.zeros((256, 256), dtype=np.float32)
+    glcm=np.zeros((bitdepth, bitdepth), dtype=np.float32)
     glcm_dev = cuda.to_device(glcm)
     img_dev = cuda.to_device(img)
     sum=np.zeros((1,), dtype=np.float32)
     sum_dev=cuda.to_device(sum)
     glcmgen_gpu[blockspergrid, threadsperblock](glcm_dev, img_dev, x_neighbour, y_neighbour, sum_dev)
     threadsperblock = (256, 1)
-    blockspergrid_x = math.ceil(256 / threadsperblock[0])
-    blockspergrid_y = math.ceil(256 / threadsperblock[1])
+    blockspergrid_x = math.ceil(bitdepth / threadsperblock[0])
+    blockspergrid_y = math.ceil(bitdepth / threadsperblock[1])
     blockspergrid = (blockspergrid_x, blockspergrid_y)
     glcm_norm_dev=cuda.device_array_like(glcm)
     normalize[blockspergrid, threadsperblock](glcm_dev, sum_dev, glcm_norm_dev)
-    val=np.zeros((256,256), dtype=np.float32)
+    val=np.zeros((bitdepth,bitdepth), dtype=np.float32)
     val_dev=cuda.to_device(val)
-    feature_gpu[blockspergrid, threadsperblock](glcm_norm_dev,5,val_dev)
+    feature_gpu[blockspergrid, threadsperblock](glcm_norm_dev,prop,val_dev)
     val=val_dev.copy_to_host()
-    print("Sum of weights:",np.sum(val, axis=None))
+    return np.sum(val, axis=None)
+    #print("Sum of weights:",)

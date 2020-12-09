@@ -9,10 +9,10 @@ from skimage.util import img_as_ubyte
 from skimage.color import rgb2gray
 import itertools
 import time
-from . import cpu, nvidia
 
 def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
-
+  from .nvidia import singleval
+  props=["dissimilarity", "contrast", "homogeneity", "ASM", "energy", "entropy"]
   #ni,nj=coords
   ri=len(im[:,0])-windowsz+windowsz%2
   rj=len(im[0,:])-windowsz+windowsz%2
@@ -23,10 +23,9 @@ def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
     tmp = np.empty((rj,), dtype=np.float32)
     for jj in range(rj):
       img = np.ascontiguousarray(im[ii:ii + windowsz, jj:jj + windowsz])#extract part of the image
-      val=nvidia.singleval(img, )
+      val=singleval(img, props.index(prop), dist, angle, bitdepth)
       tmp[jj]=val
     glcm_hom[ii]=tmp
-    print(ii)
 
   return np.ascontiguousarray(glcm_hom)
 
