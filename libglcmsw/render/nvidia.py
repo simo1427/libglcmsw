@@ -1,4 +1,4 @@
-from numba import njit, cuda, float64, uint8, uint16, int8, void
+from numba import njit, cuda, float32, uint8, uint16, int8, void
 import numpy as np
 import math
 from skimage.color import rgb2gray
@@ -86,3 +86,78 @@ def singleval(img, prop, dist, angle, bitdepth):
     val=val_dev.copy_to_host()
     return np.sum(val, axis=None)
     #print("Sum of weights:",)
+
+
+@cuda.jit(device=True)
+def glcmgen_gpu_dev(glcm,img, x_neighbour,y_neighbour):
+    xdims, ydims = img.shape
+    xstart = 0
+    xend = xdims
+    ystart = 0
+    yend = ydims
+    if x_neighbour < 0:
+        xstart += -x_neighbour
+    elif x_neighbour >= 0:
+        xend = xdims - x_neighbour
+    if y_neighbour < 0:
+        ystart += -y_neighbour
+    elif y_neighbour >= 0:
+        yend = ydims - y_neighbour
+    for i in range(xstart, xend, 1):
+        for j in range(ystart, yend, 1):
+            ref = img[i, j]
+            val = img[i + x_neighbour, j + y_neighbour]
+            cuda.atomic.add(glcm, (ref, val), 1)
+            cuda.atomic.add(glcm, (val, ref), 1)
+
+@cuda.jit("float32[:,:](float32[:,:],float32[:], float32[:,:])", device=True)
+def normalize_dev(glcm, div, glcm_norm):
+    i,j = cuda.grid(2)
+    glcm_norm[i,j]=glcm[i,j]/div[0]
+
+@cuda.jit("void(float32[:,:],uint8, float32[:,:])")
+def feature_dev(glcm, prop, glcm_edit):
+    for i in range(glcm.shape[0]):
+        for j in range(glcm.shape[1]):
+            if prop == 0: #dissimilarity
+                glcm_edit[i,j]=glcm[i,j]*abs(i-j)
+            elif prop == 1:#contrast
+                glcm_edit[i, j] = glcm[i, j] * (i - j)**2
+            elif prop == 2:#homogeneity
+                glcm_edit[i,j] = glcm[i,j]/(1+(i-j)**2)
+            elif prop == 3 or prop==4:#ASM, energy
+                glcm_edit[i,j]=glcm[i,j]**2
+            elif prop == 5:#entropy
+                if glcm[i,j]==0:
+                    glcm_edit[i,j]=0
+                else:
+                    glcm_edit[i,j]= glcm[i,j]*-math.log(glcm[i,j])
+
+
+@cuda.jit("void(float32[:,:,:], uint8, uint8, float32, int32)")
+def batcheval(batch, prop, dist, angle, bitdepth):
+    x_neighbour = round(dist * math.sin(angle))
+    y_neighbour = round(dist * math.cos(angle))
+    for j in range(batch.shape[2]):
+        glcm=cuda.shared.array((256,256), dtype=float32)
+        glcmgen_gpu_dev(glcm, batch[j], x_neighbour, y_neighbour)
+
+
+windowsz=13
+img = np.load("../../examples/.tilingtmp-gpu-3/0_0.npy")
+props=["dissimilarity", "contrast", "homogeneity", "ASM", "energy", "entropy"]
+#ni,nj=coords
+ri=len(im[:,0])-windowsz+windowsz%2
+rj=len(im[0,:])-windowsz+windowsz%2
+glcm_hom=np.zeros((ri,rj))
+i=0
+j=0
+for ii in range(ri):
+    for jj in range(rj//64):
+        batch=np.array((windowsz, windowsz,64))
+        for t in range(64):
+            batch[t]=im[ii:ii + windowsz, jj:jj + windowsz]#extract part of the image
+        print(batch[0])
+val=batcheval[(1,), (img.shape[0]//13,img.shape[1]//13)](batch, props.index(prop), dist, angle, bitdepth)
+glcm_hom[ii]=tmp
+
