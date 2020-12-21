@@ -7,6 +7,7 @@ from skimage.feature import greycomatrix, greycoprops
 from skimage import io as si
 import time
 import concurrent.futures
+import itertools
 
 @cuda.jit("void(float32[:,:], uint8[:,:], uint8, uint8, float32[:])")
 def glcmgen_gpu(glcm,img, x_neighbour,y_neighbour, sum):
@@ -147,8 +148,9 @@ def feature_gpu_dev(glcm, prop):
                 else:
                     glcm[cuda.blockIdx.x,i,j]= tmp*-math.log(glcm[cuda.blockIdx.x,i,j])
 
-@cuda.jit("void(float32[:,:,:], uint8[:,:], uint8,uint8, uint8, float32[:,:],uint8, uint8)")
-def swkrn(glcm, img, windowsz, x_neighbour, y_neighbour, sum, prop, rownum):
+@cuda.jit("void(float32[:,:,:], uint8[:,:], uint8,uint8, uint8, float32[:,:],uint8)")
+def swkrn(glcm, img, windowsz, x_neighbour, y_neighbour, sum, prop):
+    rownum = cuda.blockIdx.y
     glcmgen_gpu_dev(glcm,img,rownum, cuda.blockIdx.x, windowsz,x_neighbour, y_neighbour, sum)
     feature_gpu_dev(glcm, prop)
     sum[cuda.blockIdx.x,0]=0
@@ -167,7 +169,7 @@ def singlerungpusw(img, windowsz, batchsz):
 
     threadsperblock=(1,1,1)
     blockspergrid_x=batchsz
-    blockspergrid_y=1
+    blockspergrid_y=img.shape[0]-windowsz
     blockspergrid_z=1
     blockspergrid = (blockspergrid_x, blockspergrid_y, blockspergrid_z)
     glcm=np.zeros((batchsz,256, 256), dtype=np.float32)
@@ -223,11 +225,12 @@ begin = time.perf_counter()
 cpu=singleruncpu(img)
 print(f"cpu:{time.perf_counter() - begin} sum:{np.sum(cpu, axis=None)}")
 
-batch=64
+windowsz=7
+batch=img.shape[1]-windowsz
 begin = time.perf_counter()
-cpu=singleruncpusw(img, 13, batch)
+cpu=singleruncpusw(img, windowsz, batch)
 print(f"cpu:{time.perf_counter()-begin} sum:{np.sum(cpu, axis=None)}")
 
 begin = time.perf_counter()
-gpu=singlerungpusw(img, 13, batch)
+gpu=singlerungpusw(img, windowsz, batch)
 print(f"gpu:{time.perf_counter() - begin} sum:{np.sum(gpu, axis=None)}")
