@@ -93,7 +93,7 @@ def singlerungpu(img):
     return glcm
 
 
-@cuda.jit("void(float32[:,:,:], uint8[:,:],uint16, uint16, uint16,uint8, uint8, float32[:,:])", device=True)
+@cuda.jit("void(float32[:,:,:], uint8[:,:],uint16, uint16, uint16,uint8, uint8, float32[:,:,:])", device=True)
 def glcmgen_gpu_dev(glcm,img, rownum, colnum,windowsz,x_neighbour,y_neighbour, sum):
     xdims=windowsz
     ydims=windowsz
@@ -115,16 +115,16 @@ def glcmgen_gpu_dev(glcm,img, rownum, colnum,windowsz,x_neighbour,y_neighbour, s
             ref=img[i, j]
             val=img[i + x_neighbour, j + y_neighbour]
             cuda.syncthreads()
-            cuda.atomic.add(sum, (cuda.blockIdx.x, 0), 2)
+            cuda.atomic.add(sum, (cuda.blockIdx.y,cuda.blockIdx.x, 0), 2)
 
             cuda.atomic.add(glcm, (cuda.blockIdx.x,ref, val),1)
-            cuda.syncthreads()
+            #cuda.syncthreads()
             cuda.atomic.add(glcm, (cuda.blockIdx.x,val, ref), 1)
 
     for i in range(glcm.shape[1]):
         for j in range(glcm.shape[2]):
             tmp=glcm[cuda.blockIdx.x,i,j]
-            glcm[cuda.blockIdx.x,i,j]=tmp/sum[cuda.blockIdx.x,0]
+            glcm[cuda.blockIdx.x,i,j]=tmp/sum[cuda.blockIdx.y,cuda.blockIdx.x,0]
     #return glcm
 
 @cuda.jit("void(float32[:,:,:],uint8)", device=True)
@@ -132,30 +132,29 @@ def feature_gpu_dev(glcm, prop):
     #i,j = cuda.grid(2)
     for i in range(glcm.shape[1]):
         for j in range(glcm.shape[2]):
-            tmp=glcm[cuda.blockIdx.x,i,j]
             if prop == 0: #dissimilarity
-                glcm[cuda.blockIdx.x,i,j]=tmp*abs(i-j)
+                glcm[cuda.blockIdx.x,i,j]=glcm[cuda.blockIdx.x,i,j]*abs(i-j)
             elif prop == 1:#contrast
-                glcm[cuda.blockIdx.x,i, j] = tmp * (i - j)**2
+                glcm[cuda.blockIdx.x,i, j] = glcm[cuda.blockIdx.x,i,j] * (i - j)**2
             elif prop == 2:#homogeneity
-                glcm[cuda.blockIdx.x,i,j] = tmp/(1+(i-j)*(i-j))
+                glcm[cuda.blockIdx.x,i,j] = glcm[cuda.blockIdx.x,i,j]/(1+(i-j)*(i-j))
             elif prop == 3 or prop==4:#ASM, energy
-                glcm[cuda.blockIdx.x,i,j]=tmp**2
+                glcm[cuda.blockIdx.x,i,j]=glcm[cuda.blockIdx.x,i,j]*glcm[cuda.blockIdx.x,i,j]
             elif prop == 5:#entropy
-                if tmp==0:
+                if glcm[cuda.blockIdx.x,i,j]==0:
                     glcm[cuda.blockIdx.x,i,j]=0
                 else:
-                    glcm[cuda.blockIdx.x,i,j]= tmp*-math.log(glcm[cuda.blockIdx.x,i,j])
+                    glcm[cuda.blockIdx.x,i,j]= glcm[cuda.blockIdx.x,i,j]*-math.log(glcm[cuda.blockIdx.x,i,j])
 
-@cuda.jit("void(float32[:,:,:], uint8[:,:], uint8,uint8, uint8, float32[:,:],uint8)")
+@cuda.jit("void(float32[:,:,:], uint8[:,:], uint8,uint8, uint8, float32[:,:,:],uint8)")
 def swkrn(glcm, img, windowsz, x_neighbour, y_neighbour, sum, prop):
     rownum = cuda.blockIdx.y
     glcmgen_gpu_dev(glcm,img,rownum, cuda.blockIdx.x, windowsz,x_neighbour, y_neighbour, sum)
     feature_gpu_dev(glcm, prop)
-    sum[cuda.blockIdx.x,0]=0
+    sum[cuda.blockIdx.y,cuda.blockIdx.x,0]=0
     for i in range(glcm.shape[1]):
         for j in range(glcm.shape[2]):
-            cuda.atomic.add(sum, (cuda.blockIdx.x,0),glcm[cuda.blockIdx.x,i,j])
+            cuda.atomic.add(sum, (cuda.blockIdx.y,cuda.blockIdx.x,0),glcm[cuda.blockIdx.x,i,j])
 
 
 def singlerungpusw(img, windowsz, batchsz):
@@ -168,18 +167,19 @@ def singlerungpusw(img, windowsz, batchsz):
 
     threadsperblock=(1,1,1)
     blockspergrid_x=batchsz
-    blockspergrid_y=1
+    blockspergrid_y=img.shape[0]-windowsz
     blockspergrid_z=1
     blockspergrid = (blockspergrid_x, blockspergrid_y, blockspergrid_z)
     glcm=np.zeros((batchsz,256, 256), dtype=np.float32)
     glcm_dev = cuda.to_device(glcm)
     img_dev = cuda.to_device(img)
-    sum=np.zeros((batchsz,1), dtype=np.float32)
+    sum=np.zeros((img.shape[0]-windowsz,batchsz,1), dtype=np.float32)
     sum_dev=cuda.to_device(sum)
-    swkrn[blockspergrid, threadsperblock](glcm_dev, img_dev, windowsz, x_neighbour, y_neighbour, sum_dev, 3,0)
-    glcm_tmp=glcm_dev.copy_to_host()
+    swkrn[blockspergrid, threadsperblock](glcm_dev, img_dev, windowsz, x_neighbour, y_neighbour, sum_dev, 2,0)
+    #glcm_tmp=glcm_dev.copy_to_host()
     val=sum_dev.copy_to_host()
-    return val
+    si.imsave("./fourthgpu-homogeneity.tif", val.astype(np.float32))
+    #return val
 
 
 
@@ -206,11 +206,11 @@ def singleruncpusw(img, windowsz, batchsz):
     print(img.shape[1]-windowsz)
     begin = time.perf_counter()
     singleline=np.zeros((img.shape[1]-windowsz,), dtype=np.float32)
-    for i in range(1):
+    for i in range(2):
         for j in range(batchsz):
             tmp=img[i:i+windowsz, j:j+windowsz]
             ref=greycomatrix(tmp, distances=[dist], angles=[angle], levels=bitdepth,symmetric=True, normed=True)
-            singleline[j]=greycoprops(ref, prop="ASM")[0,0]
+            singleline[j]=greycoprops(ref, prop="homogeneity")[0,0]
     return singleline
 
 #img = img_as_ubyte(si.imread("./0_0.tif"))
@@ -224,7 +224,7 @@ begin = time.perf_counter()
 cpu=singleruncpu(img)
 print(f"cpu:{time.perf_counter() - begin} sum:{np.sum(cpu, axis=None)}")
 
-windowsz=7
+windowsz=13
 batch=img.shape[1]-windowsz
 begin = time.perf_counter()
 cpu=singleruncpusw(img, windowsz, batch)
