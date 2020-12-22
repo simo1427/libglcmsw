@@ -101,7 +101,6 @@ def glcmgen_gpu_dev(glcm,img, rownum, colnum,windowsz,x_neighbour,y_neighbour, s
     xend = xdims
     ystart = colnum
     yend = ydims
-    #i, j = cuda.grid(2)
     if x_neighbour < 0:
         xstart += -x_neighbour
     elif x_neighbour >= 0:
@@ -139,7 +138,7 @@ def feature_gpu_dev(glcm, prop):
             elif prop == 1:#contrast
                 glcm[cuda.blockIdx.x,i, j] = tmp * (i - j)**2
             elif prop == 2:#homogeneity
-                glcm[cuda.blockIdx.x,i,j] = tmp/(1+(i-j)**2)
+                glcm[cuda.blockIdx.x,i,j] = tmp/(1+(i-j)*(i-j))
             elif prop == 3 or prop==4:#ASM, energy
                 glcm[cuda.blockIdx.x,i,j]=tmp**2
             elif prop == 5:#entropy
@@ -169,7 +168,7 @@ def singlerungpusw(img, windowsz, batchsz):
 
     threadsperblock=(1,1,1)
     blockspergrid_x=batchsz
-    blockspergrid_y=img.shape[0]-windowsz
+    blockspergrid_y=1
     blockspergrid_z=1
     blockspergrid = (blockspergrid_x, blockspergrid_y, blockspergrid_z)
     glcm=np.zeros((batchsz,256, 256), dtype=np.float32)
@@ -194,7 +193,7 @@ def singleruncpu(img):
     y_neighbour = round(dist * np.cos(angle))
     begin = time.perf_counter()
     ref=greycomatrix(img, distances=[dist], angles=[angle], levels=256,symmetric=True, normed=False)[:,:,0,0]
-    print(greycoprops(greycomatrix(img, distances=[dist], angles=[angle], levels=256,symmetric=True, normed=True), prop="ASM"))
+    print(greycoprops(greycomatrix(img, distances=[dist], angles=[angle], levels=256,symmetric=True, normed=True), prop="homogeneity"))
     return ref
 
 def singleruncpusw(img, windowsz, batchsz):
