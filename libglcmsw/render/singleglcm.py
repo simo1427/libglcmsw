@@ -112,23 +112,25 @@ def glcmgen_gpu_dev(glcm,img, rownum, colnum,windowsz,x_neighbour,y_neighbour, s
         yend = colnum + ydims - y_neighbour
     tmp=0
     j = ystart + cuda.threadIdx.x
+    stridej = windowsz // cuda.blockDim.x if windowsz % cuda.blockDim.x == 0 else windowsz // cuda.blockDim.x + 1
     #print(j, cuda.blockIdx.x, cuda.blockIdx.y)
+    yrangestart=ystart+stridej*cuda.threadIdx.x
+    yrangeend=ystart+stridej*(cuda.threadIdx.x+1)
     for i in range(xstart, xend, 1):
-        #for j in range(ystart, yend, 1):
-        if (i>=xstart and i<xend) and ((j>=ystart and j<yend)):
-            ref=img[i, j]
-            val=img[i + x_neighbour, j + y_neighbour]
-            cuda.atomic.add(sum, (rownum, colnum), 2)
-            cuda.atomic.add(glcm, (cuda.blockIdx.x,ref, val),1)
-            #cuda.syncthreads()
-            cuda.atomic.add(glcm, (cuda.blockIdx.x,val, ref), 1)
+        for j in range(yrangestart, yrangeend, 1):
+            if (i>=xstart and i<xend) and ((j>=ystart and j<yend)):
+                ref=img[i, j]
+                val=img[i + x_neighbour, j + y_neighbour]
+                cuda.atomic.add(sum, (rownum, colnum), 2)
+                cuda.atomic.add(glcm, (cuda.blockIdx.x,ref, val),1)
+                #cuda.syncthreads()
+                cuda.atomic.add(glcm, (cuda.blockIdx.x,val, ref), 1)
 
     #return glcm
 @cuda.jit("void(float32[:,:,:],uint8)", device=True)
 def feature_gpu_dev(glcm, prop):
     #i,j = cuda.grid(2)
-    stridej = glcm.shape[2] // cuda.blockDim.x if glcm.shape[2] % cuda.blockDim.x == 0 else glcm.shape[
-                                                                                                2] // cuda.blockDim.x + 1
+    stridej = glcm.shape[2] // cuda.blockDim.x if glcm.shape[2] % cuda.blockDim.x == 0 else glcm.shape[2] // cuda.blockDim.x + 1
     for i in range(glcm.shape[1]):
         for j in range(cuda.threadIdx.x * stridej, (cuda.threadIdx.x + 1) * stridej):
             if j < glcm.shape[2]:
@@ -183,7 +185,7 @@ def singlerungpusw(img, windowsz, batchsz):
 
     #batchsz=img.shape[1]-windowsz
     batchsz=img.shape[1]
-    threadsperblock=(windowsz,1,1)
+    threadsperblock=(32,1,1)
     blockspergrid_x=batchsz
     blockspergrid_y=4
     blockspergrid_z=1
@@ -196,7 +198,7 @@ def singlerungpusw(img, windowsz, batchsz):
     swkrn[blockspergrid, threadsperblock](glcm_dev, img_dev, windowsz, x_neighbour, y_neighbour, sum_dev, 2)
     glcm_tmp=glcm_dev.copy_to_host()
     sum=sum_dev.copy_to_host()
-    si.imsave("./fifthgpu-homogeneity-3.tif", sum.astype(np.float32))
+    si.imsave("./sixthgpu-down8x-sw13.tif", sum.astype(np.float32))
 
 
 
@@ -231,7 +233,7 @@ def singleruncpusw(img, windowsz, batchsz):
     return singleline
 
 #img = img_as_ubyte(si.imread("./0_0.tif"))
-img = img_as_ubyte(rgb2gray(si.imread("../../examples/input.tif")))
+img = img_as_ubyte(rgb2gray(si.imread("/home/simo1427/Documents/jBioMed Data/MkyISH_SVZi1/ischdown8x.png")))
 
 """begin = time.perf_counter()
 gpu=singlerungpu(img)
