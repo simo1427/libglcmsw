@@ -111,9 +111,11 @@ def glcmgen_gpu_dev(glcm,img, rownum, colnum,windowsz,x_neighbour,y_neighbour, s
     elif y_neighbour >= 0:
         yend = colnum + ydims - y_neighbour
     tmp=0
+    j = ystart + cuda.threadIdx.x
+    #print(j, cuda.blockIdx.x, cuda.blockIdx.y)
     for i in range(xstart, xend, 1):
-        for j in range(ystart, yend, 1):
-        #if (i>=xstart and i<xend) and ((j>=ystart and j<yend)):
+        #for j in range(ystart, yend, 1):
+        if (i>=xstart and i<xend) and ((j>=ystart and j<yend)):
             ref=img[i, j]
             val=img[i + x_neighbour, j + y_neighbour]
             cuda.atomic.add(sum, (rownum, colnum), 2)
@@ -125,25 +127,28 @@ def glcmgen_gpu_dev(glcm,img, rownum, colnum,windowsz,x_neighbour,y_neighbour, s
 @cuda.jit("void(float32[:,:,:],uint8)", device=True)
 def feature_gpu_dev(glcm, prop):
     #i,j = cuda.grid(2)
+    stridej = glcm.shape[2] // cuda.blockDim.x if glcm.shape[2] % cuda.blockDim.x == 0 else glcm.shape[
+                                                                                                2] // cuda.blockDim.x + 1
     for i in range(glcm.shape[1]):
-        for j in range(glcm.shape[2]):
-            if prop == 0: #dissimilarity
-                glcm[cuda.blockIdx.x,i,j]=glcm[cuda.blockIdx.x,i,j]*abs(i-j)
-            elif prop == 1:#contrast
-                glcm[cuda.blockIdx.x,i, j] = glcm[cuda.blockIdx.x,i,j] * (i - j)**2
-            elif prop == 2:#homogeneity
-                glcm[cuda.blockIdx.x,i,j] = glcm[cuda.blockIdx.x,i,j]/(1+(i-j)*(i-j))
-            elif prop == 3 or prop==4:#ASM, energy
-                glcm[cuda.blockIdx.x,i,j]=glcm[cuda.blockIdx.x,i,j]*glcm[cuda.blockIdx.x,i,j]
-            elif prop == 5:#entropy
-                if glcm[cuda.blockIdx.x,i,j]==0:
-                    glcm[cuda.blockIdx.x,i,j]=0
-                else:
-                    glcm[cuda.blockIdx.x,i,j]= glcm[cuda.blockIdx.x,i,j]*-math.log(glcm[cuda.blockIdx.x,i,j])
+        for j in range(cuda.threadIdx.x * stridej, (cuda.threadIdx.x + 1) * stridej):
+            if j < glcm.shape[2]:
+                if prop == 0: #dissimilarity
+                    glcm[cuda.blockIdx.x,i,j]=glcm[cuda.blockIdx.x,i,j]*abs(i-j)
+                elif prop == 1:#contrast
+                    glcm[cuda.blockIdx.x,i, j] = glcm[cuda.blockIdx.x,i,j] * (i - j)**2
+                elif prop == 2:#homogeneity
+                    glcm[cuda.blockIdx.x,i,j] = glcm[cuda.blockIdx.x,i,j]/(1+(i-j)*(i-j))
+                elif prop == 3 or prop==4:#ASM, energy
+                    glcm[cuda.blockIdx.x,i,j]=glcm[cuda.blockIdx.x,i,j]*glcm[cuda.blockIdx.x,i,j]
+                elif prop == 5:#entropy
+                    if glcm[cuda.blockIdx.x,i,j]==0:
+                        glcm[cuda.blockIdx.x,i,j]=0
+                    else:
+                        glcm[cuda.blockIdx.x,i,j]= glcm[cuda.blockIdx.x,i,j]*-math.log(glcm[cuda.blockIdx.x,i,j])
 
 @cuda.jit("void(float32[:,:,:], uint8[:,:], uint8,uint8, uint8, float32[:,:],uint8)")
 def swkrn(glcm, img, windowsz, x_neighbour, y_neighbour, sum, prop):
-    nrows=6
+    nrows=sum.shape[0]
     ncols=sum.shape[1]
     stridey=nrows//cuda.gridDim.y if nrows%cuda.gridDim.y == 0 else nrows//cuda.gridDim.y+1
     #stridex = ncols // cuda.gridDim.x if ncols % cuda.gridDim.x == 0 else ncols // cuda.gridDim.x + 1
@@ -153,16 +158,18 @@ def swkrn(glcm, img, windowsz, x_neighbour, y_neighbour, sum, prop):
     for rownum in range(cuda.blockIdx.y*stridey, (cuda.blockIdx.y+1)*stridey):
         if rownum<nrows and colnum < ncols:
             glcmgen_gpu_dev(glcm,img,rownum, colnum, windowsz,x_neighbour, y_neighbour, sum)
+            stridej=glcm.shape[2]//cuda.blockDim.x if glcm.shape[2]%cuda.blockDim.x==0 else glcm.shape[2]//cuda.blockDim.x+1
             for i in range(glcm.shape[1]):
-                for j in range(glcm.shape[2]):
-                    # tmp=
-                    glcm[cuda.blockIdx.x, i, j] = glcm[cuda.blockIdx.x, i, j] / sum[rownum, colnum]
+                for j in range(cuda.threadIdx.x*stridej,(cuda.threadIdx.x+1)*stridej):
+                    if j<glcm.shape[2]:
+                        glcm[cuda.blockIdx.x, i, j] = glcm[cuda.blockIdx.x, i, j] / sum[rownum, colnum]
             feature_gpu_dev(glcm, prop)
             sum[rownum,colnum]=0
             for i in range(glcm.shape[1]):
-                for j in range(glcm.shape[2]):
-                    cuda.atomic.add(sum, (rownum,colnum),glcm[cuda.blockIdx.x,i,j])
-                    glcm[cuda.blockIdx.x, i, j]=0
+                for j in range(cuda.threadIdx.x*stridej,(cuda.threadIdx.x+1)*stridej):
+                    if j<glcm.shape[2]:
+                        cuda.atomic.add(sum, (rownum,colnum),glcm[cuda.blockIdx.x,i,j])
+                        glcm[cuda.blockIdx.x, i, j]=0
             #print(rownum, colnum, sum[rownum, colnum])
         #print(rownum)
 
@@ -176,7 +183,7 @@ def singlerungpusw(img, windowsz, batchsz):
 
     #batchsz=img.shape[1]-windowsz
     batchsz=img.shape[1]
-    threadsperblock=(1,1,1)
+    threadsperblock=(windowsz,1,1)
     blockspergrid_x=batchsz
     blockspergrid_y=4
     blockspergrid_z=1
@@ -189,7 +196,7 @@ def singlerungpusw(img, windowsz, batchsz):
     swkrn[blockspergrid, threadsperblock](glcm_dev, img_dev, windowsz, x_neighbour, y_neighbour, sum_dev, 2)
     glcm_tmp=glcm_dev.copy_to_host()
     sum=sum_dev.copy_to_host()
-    si.imsave("./fifthgpu-homogeneity-2.tif", sum.astype(np.float32))
+    si.imsave("./fifthgpu-homogeneity-3.tif", sum.astype(np.float32))
 
 
 
