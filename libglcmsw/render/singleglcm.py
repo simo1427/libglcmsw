@@ -172,6 +172,8 @@ def swkrn(glcm, img, windowsz, x_neighbour, y_neighbour, sum, prop):
                     if j<glcm.shape[2]:
                         cuda.atomic.add(sum, (rownum,colnum),glcm[cuda.blockIdx.x,i,j])
                         glcm[cuda.blockIdx.x, i, j]=0
+            if prop==4:
+                sum[rownum, colnum]=math.sqrt(sum[rownum, colnum])
             #print(rownum, colnum, sum[rownum, colnum])
         #print(rownum)
 
@@ -195,10 +197,10 @@ def singlerungpusw(img, windowsz, batchsz):
     img_dev = cuda.to_device(img)
     sum=np.zeros((img.shape[0]-windowsz,img.shape[1]-windowsz), dtype=np.float32)
     sum_dev=cuda.to_device(sum)
-    swkrn[blockspergrid, threadsperblock](glcm_dev, img_dev, windowsz, x_neighbour, y_neighbour, sum_dev, 2)
+    swkrn[blockspergrid, threadsperblock](glcm_dev, img_dev, windowsz, x_neighbour, y_neighbour, sum_dev, 4)
     glcm_tmp=glcm_dev.copy_to_host()
     sum=sum_dev.copy_to_host()
-    si.imsave("./sixthgpu-down8x-sw13.tif", sum.astype(np.float32))
+    si.imsave("./energy.tif", sum.astype(np.float32))
 
 
 
@@ -233,7 +235,7 @@ def singleruncpusw(img, windowsz, batchsz):
     return singleline
 
 #img = img_as_ubyte(si.imread("./0_0.tif"))
-img = img_as_ubyte(rgb2gray(si.imread("/home/simo1427/Documents/jBioMed Data/MkyISH_SVZi1/ischdown8x.png")))
+img = img_as_ubyte(rgb2gray(si.imread("../../examples/input.tif")))
 
 """begin = time.perf_counter()
 gpu=singlerungpu(img)
@@ -243,7 +245,7 @@ begin = time.perf_counter()
 #cpu=singleruncpu(img)
 print(f"cpu:{time.perf_counter() - begin} sum:{np.sum(cpu, axis=None)}")
 """
-windowsz=13
+windowsz=7
 batch=img.shape[1]-windowsz
 begin = time.perf_counter()
 cpu=singleruncpusw(img, windowsz, batch)
