@@ -178,6 +178,39 @@ def swkrn(glcm, img, windowsz, x_neighbour, y_neighbour, sum, prop):
         #print(rownum)
 
 
+@cuda.jit("void(float32[:,:,:], uint8[:,:],uint8[:,:], uint8,uint8, uint8, float32[:,:],uint8)")
+def swkrnmask(glcm, img, mask, windowsz, x_neighbour, y_neighbour, sum, prop):
+    nrows=sum.shape[0]
+    ncols=sum.shape[1]
+    stridey=nrows//cuda.gridDim.y if nrows%cuda.gridDim.y == 0 else nrows//cuda.gridDim.y+1
+    #stridex = ncols // cuda.gridDim.x if ncols % cuda.gridDim.x == 0 else ncols // cuda.gridDim.x + 1
+    colnum=cuda.blockIdx.x
+    #print(stridex, stridey, cuda.blockIdx.x, cuda.blockIdx.y)
+    #sum[9,9]=glcm.shape[0]
+    for rownum in range(cuda.blockIdx.y*stridey, (cuda.blockIdx.y+1)*stridey):
+        if rownum<nrows and colnum < ncols:
+            if mask[rownum+windowsz//2, colnum+windowsz//2]:
+                glcmgen_gpu_dev(glcm,img,rownum, colnum, windowsz,x_neighbour, y_neighbour, sum)
+                stridej=glcm.shape[2]//cuda.blockDim.x if glcm.shape[2]%cuda.blockDim.x==0 else glcm.shape[2]//cuda.blockDim.x+1
+                for i in range(glcm.shape[1]):
+                    for j in range(cuda.threadIdx.x*stridej,(cuda.threadIdx.x+1)*stridej):
+                        if j<glcm.shape[2]:
+                            glcm[cuda.blockIdx.x, i, j] = glcm[cuda.blockIdx.x, i, j] / sum[rownum, colnum]
+                feature_gpu_dev(glcm, prop)
+                sum[rownum,colnum]=0
+                for i in range(glcm.shape[1]):
+                    for j in range(cuda.threadIdx.x*stridej,(cuda.threadIdx.x+1)*stridej):
+                        if j<glcm.shape[2]:
+                            cuda.atomic.add(sum, (rownum,colnum),glcm[cuda.blockIdx.x,i,j])
+                            glcm[cuda.blockIdx.x, i, j]=0
+                if prop==4:
+                    sum[rownum, colnum]=math.sqrt(sum[rownum, colnum])
+            else:
+                sum[rownum, colnum]=-1
+            #print(rownum, colnum, sum[rownum, colnum])
+        #print(rownum)
+
+
 def singlerungpusw(img, windowsz, batchsz):
     dist=1
     angle=0
@@ -189,7 +222,7 @@ def singlerungpusw(img, windowsz, batchsz):
     batchsz=img.shape[1]
     threadsperblock=(32,1,1)
     blockspergrid_x=batchsz
-    blockspergrid_y=4
+    blockspergrid_y=1
     blockspergrid_z=1
     blockspergrid = (blockspergrid_x, blockspergrid_y, blockspergrid_z)
     glcm=np.zeros((batchsz,256, 256), dtype=np.float32)
@@ -197,10 +230,11 @@ def singlerungpusw(img, windowsz, batchsz):
     img_dev = cuda.to_device(img)
     sum=np.zeros((img.shape[0]-windowsz,img.shape[1]-windowsz), dtype=np.float32)
     sum_dev=cuda.to_device(sum)
-    swkrn[blockspergrid, threadsperblock](glcm_dev, img_dev, windowsz, x_neighbour, y_neighbour, sum_dev, 4)
+    mask_dev=cuda.to_device(img_as_ubyte(si.imread("../../examples/mask.tif")))
+    swkrnmask[blockspergrid, threadsperblock](glcm_dev, img_dev, mask_dev, windowsz, x_neighbour, y_neighbour, sum_dev, 4)
     glcm_tmp=glcm_dev.copy_to_host()
     sum=sum_dev.copy_to_host()
-    si.imsave("./energy.tif", sum.astype(np.float32))
+    si.imsave("./energymasked.tif", sum.astype(np.float32))
 
 
 
@@ -236,6 +270,7 @@ def singleruncpusw(img, windowsz, batchsz):
 
 #img = img_as_ubyte(si.imread("./0_0.tif"))
 img = img_as_ubyte(rgb2gray(si.imread("../../examples/input.tif")))
+#img = img_as_ubyte(rgb2gray(np.load("../../examples/.tilingtmp-gpu/0_0.npy")))
 
 """begin = time.perf_counter()
 gpu=singlerungpu(img)
