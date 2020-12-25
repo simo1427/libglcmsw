@@ -1,8 +1,5 @@
-import pyopencl
-import os
 import numpy as np
 
-import math
 import concurrent.futures
 import multiprocessing
 from skimage.util import img_as_ubyte
@@ -10,24 +7,16 @@ from skimage.color import rgb2gray
 import itertools
 import time
 
-def singletilecpu(im, windowsz, prop,angle, dist,bitdepth):
-  from .nvidia import singleval
-  props=["dissimilarity", "contrast", "homogeneity", "ASM", "energy", "entropy"]
-  #ni,nj=coords
-  ri=len(im[:,0])-windowsz+windowsz%2
-  rj=len(im[0,:])-windowsz+windowsz%2
-  glcm_hom=np.zeros((ri,rj))
-  i=0
-  j=0
-  for ii in range(ri):
-    tmp = np.empty((rj,), dtype=np.float32)
-    for jj in range(rj):
-      img = np.ascontiguousarray(im[ii:ii + windowsz, jj:jj + windowsz])#extract part of the image
-      val=singleval(img, props.index(prop), dist, angle, bitdepth)
-      tmp[jj]=val
-    glcm_hom[ii]=tmp
+def singletilecpu(im, windowsz, prop,angle, dist,bitdepth, target):
+  if target=="cuda":
+    from .nvidia import singletilegpusw
+    props = ["dissimilarity", "contrast", "homogeneity", "ASM", "energy", "entropy"]
+    glcm_hom = singletilegpusw(np.ascontiguousarray(im), windowsz, props.index(prop), dist, angle, bitdepth=bitdepth)
+    return glcm_hom
 
-  return np.ascontiguousarray(glcm_hom)
+  """elif target=="roc":
+    from .roc import singletilegpusw"""
+
 
 """
 func tilerenderlist
@@ -66,24 +55,24 @@ def tilerenderlist(dpath, inptile, windowsz, **kwargs):
 
   angle = kwargs.get("angle", 0)
   distance = kwargs.get("distance", 1)
-
-  print(f"Using {workers} cores for rendering")
+  bitdepth = kwargs.get("bitdepth", 256)
+  target=kwargs.get("target", "cuda")
+  print(f"Using GPU for rendering")
   tiles=[]
   for tile in inptile:
     ni, nj = tile
     tiles.append(img_as_ubyte(rgb2gray(np.load(dpath + f"/{ni}_{nj}.npy"))))
   begintotal = time.perf_counter()
-  with concurrent.futures.ProcessPoolExecutor(max_workers=workers) as executor:
-
-    results = executor.map(singletilecpu, tiles, itertools.repeat(windowsz),
-                           itertools.repeat(prop), itertools.repeat(angle), itertools.repeat(distance), itertools.repeat(256))
-    for p in inptile:
-      try:
-        ni, nj = p
-        np.save(dpath + f"/g{ni}_{nj}.npy", np.ascontiguousarray(next(results)))
-        print(p)
-      except StopIteration:
-        break
+  results = map(singletilecpu, tiles, itertools.repeat(windowsz),
+                         itertools.repeat(prop), itertools.repeat(angle), itertools.repeat(distance), itertools.repeat(bitdepth), itertools.repeat(target))
+  for p in inptile:
+    try:
+      ni, nj = p
+      np.save(dpath + f"/g{ni}_{nj}.npy", np.ascontiguousarray(next(results)), allow_pickle=True)
+      print(p)
+    except StopIteration:
+      break
 
   finishtotal = time.perf_counter()
   print(f'Ended in {round(finishtotal - begintotal, 3)}')
+
