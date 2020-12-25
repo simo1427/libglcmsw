@@ -18,6 +18,14 @@ def singletilecpu(im, windowsz, prop,angle, dist,bitdepth, target):
   """elif target=="roc":
     from .roc import singletilegpusw"""
 
+def singletilecpumask(im,mask, windowsz, prop,angle, dist,bitdepth, target):
+  if target=="cuda":
+    from .nvidia import masked
+    props = ["dissimilarity", "contrast", "homogeneity", "ASM", "energy", "entropy"]
+    glcm_hom = masked(np.ascontiguousarray(im), np.ascontiguousarray(mask), windowsz, props.index(prop), dist, angle, bitdepth=bitdepth)
+    return glcm_hom
+
+
 
 """
 func tilerenderlist
@@ -44,8 +52,6 @@ func tilerenderlist
     parse coords from tuple
     save the processed image with the prefix 'g' - important for libglcmsw.io.crashrecovery.getunprocessedtiles() and libglcmsw.tiling.reconstruct.*
 """
-
-
 def tilerenderlist(dpath, inptile, windowsz, **kwargs):
     workers = kwargs.get("ncores", multiprocessing.cpu_count() // 2 - 1)
     if multiprocessing.cpu_count() < workers or workers < 0:
@@ -77,7 +83,6 @@ def tilerenderlist(dpath, inptile, windowsz, **kwargs):
     finishtotal = time.perf_counter()
     print(f'Ended in {round(finishtotal - begintotal, 3)}')
 
-
 def rasterrender(osobj,windowsz,**kwargs):
     prop = kwargs.get("prop", "homogeneity")
     dsfact=kwargs.get("downscale", 1)
@@ -89,6 +94,22 @@ def rasterrender(osobj,windowsz,**kwargs):
     im = img_as_ubyte(rgb2gray(openimg.tonpyarr(osobj, downscale=dsfact)))
     begintotal = time.perf_counter()
     glcm_hom=singletilecpu(im, windowsz,prop, angle, distance, bitdepth, target)
+    finishtotal = time.perf_counter()
+    print(f'Ended in {round(finishtotal - begintotal, 3)}')
+    return glcm_hom
+
+def rasterrendermasked(img_os,mask_os,windowsz,**kwargs):
+    prop = kwargs.get("prop", "homogeneity")
+    dsfact=kwargs.get("downscale", 1)
+    angle = kwargs.get("angle", 0)
+    distance = kwargs.get("distance", 1)
+    bitdepth = kwargs.get("bitdepth", 256)
+    target=kwargs.get("target", "cuda")
+    print(f"Using GPU for rendering")
+    im = img_as_ubyte(rgb2gray(openimg.tonpyarr(img_os, downscale=dsfact)))
+    mask = img_as_ubyte(rgb2gray(openimg.tonpyarr(mask_os, downscale=dsfact)))
+    begintotal = time.perf_counter()
+    glcm_hom=singletilecpumask(im, mask, windowsz,prop, angle, distance, bitdepth, target)
     finishtotal = time.perf_counter()
     print(f'Ended in {round(finishtotal - begintotal, 3)}')
     return glcm_hom
