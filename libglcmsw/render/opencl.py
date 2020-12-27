@@ -52,7 +52,7 @@ for (arr, buff) in input:
 
 #krn_args=[glcm_buff, img_buff, np.uint8(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), res_buff, np.uint8(prop), np.int32(res.shape[0]), np.int32(res.shape[1])]
 #prgs.swkrn(queue, (res.shape[1], 1), (1,1), *krn_args)
-
+print(x_neighbour, y_neighbour)
 krn_args=[glcm_buff, img_buff,res_buff, np.int32(res.shape[0]), np.int32(res.shape[1]), np.int32(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), np.int32(prop)]
 prgs.swkrn_debug(queue, (res.shape[1],1), (1,1), *krn_args)
 for (arr, buff) in output:

@@ -34,48 +34,44 @@ int glcmgen(volatile __global float *glcm, __global uchar *img, int rownum, int 
   int wdim=get_local_size(0);
   int lid=get_local_id(0);
   if(x_neighbour<0)xstart +=-x_neighbour;
-  else if(x_neighbour>=0)xend=rownum+windowsz-x_neighbour;
+  else xend=rownum+windowsz-x_neighbour;
   if(y_neighbour<0)ystart+=-y_neighbour;
   else if(y_neighbour>=0)yend=colnum+windowsz-y_neighbour;
   int stridej=windowsz%wdim?windowsz/wdim+1:windowsz/wdim;
   int yrangestart=ystart+stridej*lid;
   int yrangeend=ystart+stridej*(lid+1);
-  //printf("%d,%d %d %d %d, %d %d %d %d\n", gid,xstart, xend, ystart, yend, yrangestart, yrangeend, stridej, wdim);
+  //printf("GLCMGEN ATTRIBUTES:%d,%d %d %d %d, %d %d %d %d\n", gid,xstart, xend, ystart, yend, yrangestart, yrangeend, stridej, wdim);
   float tmp1=0, tmp2=0;
   int tmpsum_private=0;
   for(int i=xstart;i<xend;i++)
   {
     for(int j=yrangestart;j<yrangeend;j++)
     {
-      //if(i>=xstart && j<xend && j>=ystart && j<yend)
-      //{
+      if(i>=xstart && i<xend && j>=ystart && j<yend)
+      {
         uchar ref=img[i*ncols+j];
         uchar val=img[(i+x_neighbour)*ncols+j+y_neighbour];
         mem_fence(CLK_GLOBAL_MEM_FENCE);
         //if(gid==45)printf("%d %d, %d %d\n", i,j,ref, val);
         unsigned int addr1=gid*65536+ref*256+val;
         unsigned int addr2=gid*65536+val*256+ref;
-        tmp1=glcm[addr1];
-        tmp2=glcm[addr2];
         mem_fence(CLK_GLOBAL_MEM_FENCE);
-        tmp1+=1;
-        tmp2+=1;
-        //glcm[addr2]=glcm[addr2]+1;
-        glcm[addr1]=tmp1;
-        glcm[addr2]=tmp2;
+        glcm[addr1]=glcm[addr1]+1;
+        glcm[addr2]=glcm[addr2]+1;
         mem_fence(CLK_GLOBAL_MEM_FENCE);
         //mem_fence(CLK_LOCAL_MEM_FENCE);
         tmpsum_private+=2;
         //printf("%d %d, %f %f, %d\n", ref, val,glcm[addr1], glcm[addr2], *tmpsum);
-      //}
+      }
+      else printf("%d %d. %d %d/%d %d,%d %d\n", i,j,xstart, xend, yrangestart, yrangeend, ystart, yend);
     }
   }
   //printf("%d\n", gid);
   //printf("Returned:%d\n",2*(xend-xstart)*(yend-ystart));
-  return 2*(xend-xstart)*(yend-ystart);
+  return tmpsum_private;//2*(xend-xstart)*(yend-ystart);
 }
 
-void feature(__global float *glcm, int prop, int sum)
+void feature(__global float *glcm, int prop)
 {
   int ldim=get_local_size(0);
   int lid=get_local_id(0);
@@ -122,6 +118,7 @@ __kernel void swkrn_debug(__global float *glcm, __global uchar *img, __global fl
         }
       }
       //printf("%f\n",accum);
+      feature(glcm, prop);
       int lid=get_local_id(0);
       int ldim=get_local_size(0);
       int stridej=256/ldim+256%ldim?1:0;
