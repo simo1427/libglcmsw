@@ -30,7 +30,7 @@ __kernel void sum(__global const float *a_g, __global const float *b_g, __global
 int glcmgen(volatile __global float *glcm, __global uchar *img, int rownum, int colnum, int windowsz, int x_neighbour, int y_neighbour, int nrows, int ncols)
 {
   int xstart=rownum, xend=windowsz+rownum, ystart=colnum,yend=windowsz+colnum;
-  int gid=get_group_id(0);
+  int gid=get_global_id(0);
   int wdim=get_local_size(0);
   int lid=get_local_id(0);
   if(x_neighbour<0)xstart +=-x_neighbour;
@@ -96,7 +96,7 @@ void feature(__global float *glcm, int prop)
 __kernel void swkrn_debug(__global float *glcm, __global uchar *img, __global float *sum,  int nrows, int ncols, int windowsz, int x_neighbour, int y_neighbour, int prop)
 {
   int stridey=nrows%get_global_size(1)?nrows/get_global_size(1)+1:nrows/get_global_size(1);
-  int colnum=get_group_id(0);
+  int colnum=get_global_id(0);
   int gid1=get_group_id(1);
   __local int tmpsum;
   //for(int rownum=gid1*stridey; rownum<(gid1+1)*stridey;rownum++)
