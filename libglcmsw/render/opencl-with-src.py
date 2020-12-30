@@ -7,7 +7,7 @@ from skimage.feature import greycomatrix, greycoprops
 from skimage import io as si
 import time
 
-src=open("src-gpu-new.cl", "r").read()
+src=open("src.cl", "r").read()
 def platformslist():
     return [platform.name for platform in cl.get_platforms()]
 
@@ -34,13 +34,11 @@ dist=1
 angle=0
 img = img_as_ubyte(rgb2gray(si.imread("../../examples/input.tif")))
 res=np.zeros((img.shape[0]-windowsz//2*2,img.shape[1]-windowsz//2*2), dtype=np.float32)
+glcm=np.zeros((img.shape[1]-windowsz//2*2, 256, 256), dtype=np.float32)
+glcmfloat=np.zeros((img.shape[1]-windowsz//2*2, 256, 256), dtype=np.float32)
 x_neighbour = round(dist * np.cos(angle))
 y_neighbour = round(dist * np.sin(angle))
 prop=np.uint8(2)
-workitems=(16, 16)
-workgroups=(math.ceil((img.shape[0]-windowsz//2*2)/workitems[0])*workitems[0],math.ceil((img.shape[1]-windowsz//2*2)/workitems[1])*workitems[1])
-glcm=np.zeros((workgroups[1], 256, 256), dtype=np.float32)
-
 
 img_buff=cl.Buffer(context, flags=cl.mem_flags.READ_ONLY, size=img.nbytes)
 res_buff=cl.Buffer(context, flags=cl.mem_flags.READ_WRITE, size=res.nbytes)
@@ -57,12 +55,12 @@ for (arr, buff) in input:
 print(x_neighbour, y_neighbour)
 krn_args=[glcm_buff, img_buff,res_buff, np.int32(res.shape[0]), np.int32(res.shape[1]), np.int32(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), np.int32(prop)]
 begin=time.perf_counter()
-prgs.swkrn_debug(queue, workgroups, workitems, *krn_args)
+prgs.swkrn_debug(queue, (res.shape[1],1), (1,1), *krn_args)
 for (arr, buff) in output:
     cl.enqueue_copy(queue, src=buff, dest=arr)
 queue.finish()
 print(time.perf_counter()-begin)
-si.imsave(f"newgpu-threads-4.tif", res)
+si.imsave(f"addressing-cuda-prop-{prop}-windowsz13.tif", res)
 
 
 assert True
