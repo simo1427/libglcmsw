@@ -39,6 +39,7 @@ y_neighbour = round(dist * np.sin(angle))
 prop=np.uint8(2)
 workitems=(16, 16)
 workgroups=(math.ceil((img.shape[0]-windowsz//2*2)/workitems[0])*workitems[0],math.ceil((img.shape[1]-windowsz//2*2)/workitems[1])*workitems[1])
+print(math.ceil((img.shape[0]-windowsz//2*2)/workitems[0]),math.ceil((img.shape[1]-windowsz//2*2)/workitems[1]))
 glcm=np.zeros((workgroups[1], 256, 256), dtype=np.float32)
 
 
@@ -55,14 +56,15 @@ for (arr, buff) in input:
 #krn_args=[glcm_buff, img_buff, np.uint8(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), res_buff, np.uint8(prop), np.int32(res.shape[0]), np.int32(res.shape[1])]
 #prgs.swkrn(queue, (res.shape[1], 1), (1,1), *krn_args)
 print(x_neighbour, y_neighbour)
-krn_args=[glcm_buff, img_buff,res_buff, np.int32(res.shape[0]), np.int32(res.shape[1]), np.int32(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), np.int32(prop)]
+krn_args=[glcm_buff, img_buff,res_buff, np.int32(img.shape[0]), np.int32(img.shape[1]), np.int32(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), np.int32(prop)]
 begin=time.perf_counter()
 prgs.swkrn_debug(queue, workgroups, workitems, *krn_args)
 for (arr, buff) in output:
     cl.enqueue_copy(queue, src=buff, dest=arr)
 queue.finish()
 print(time.perf_counter()-begin)
-si.imsave(f"newgpu-threads-4.tif", res)
+si.imsave(f"newgpu-threads-7.tif", res)
+si.imsave(f"orig.tif", img)
 
 
 assert True
