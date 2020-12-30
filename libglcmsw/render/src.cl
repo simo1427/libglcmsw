@@ -77,6 +77,34 @@ void feature(__global float *glcm, int prop)
   int lid=get_local_id(0);
   int gid=get_group_id(0);
   int stridej=256/ldim+256%ldim?1:0;
+  if(prop==0)
+  {
+    for(int i=0;i<256;i++)
+    {
+      //for(int j=lid*stridej;j<(lid+1)*stridej;j++)
+      for(int j=0;j<256;j++)
+      {
+        if(j<256)
+        {
+          glcm[gid*65536+i*256+j]=glcm[gid*65536+i*256+j]*(float)abs(i-j);
+        }
+      }
+    }
+  }
+  if(prop==1)
+  {
+    for(int i=0;i<256;i++)
+    {
+      //for(int j=lid*stridej;j<(lid+1)*stridej;j++)
+      for(int j=0;j<256;j++)
+      {
+        if(j<256)
+        {
+          glcm[gid*65536+i*256+j]=glcm[gid*65536+i*256+j]*(float)((i-j)*(i-j));
+        }
+      }
+    }
+  }
   if(prop==2)
   {
     for(int i=0;i<256;i++)
@@ -87,6 +115,35 @@ void feature(__global float *glcm, int prop)
         if(j<256)
         {
           glcm[gid*65536+i*256+j]=glcm[gid*65536+i*256+j]/(float)(1+((i-j)*(i-j)));
+        }
+      }
+    }
+  }
+  if(prop==3 || prop==4)
+  {
+    for(int i=0;i<256;i++)
+    {
+      //for(int j=lid*stridej;j<(lid+1)*stridej;j++)
+      for(int j=0;j<256;j++)
+      {
+        if(j<256)
+        {
+          glcm[gid*65536+i*256+j]*=glcm[gid*65536+i*256+j];
+        }
+      }
+    }
+  }
+  if(prop==5)
+  {
+    for(int i=0;i<256;i++)
+    {
+      //for(int j=lid*stridej;j<(lid+1)*stridej;j++)
+      for(int j=0;j<256;j++)
+      {
+        if(j<256)
+        {
+          glcm[gid*65536+i*256+j]*=-log(glcm[gid*65536+i*256+j]);
+          if(isnan(glcm[gid*65536+i*256+j]))glcm[gid*65536+i*256+j]=0;
         }
       }
     }
@@ -137,5 +194,6 @@ __kernel void swkrn_debug(__global float *glcm, __global uchar *img, __global fl
       }
       sum[rownum*ncols+colnum]=accum;
     }
+    //printf("%d", rownum);
   }
 }
