@@ -20,7 +20,7 @@ devices=platform.get_devices()
 
 context=cl.Context(devices=devices)
 prgs_src=cl.Program(context, src)
-prgs=prgs_src.build()
+prgs=prgs_src.build(options="-cl-opt-disable")
 print(f"Kernel Names: {prgs.get_info(cl.program_info.KERNEL_NAMES)}")
 
 """N=(5,5,4)
@@ -37,10 +37,12 @@ res=np.zeros((img.shape[0]-windowsz//2*2,img.shape[1]-windowsz//2*2), dtype=np.f
 x_neighbour = round(dist * np.cos(angle))
 y_neighbour = round(dist * np.sin(angle))
 prop=np.uint8(2)
-workitems=(16, 16)
-workgroups=(math.ceil((img.shape[0]-windowsz//2*2)/workitems[0])*workitems[0],math.ceil((img.shape[1]-windowsz//2*2)/workitems[1])*workitems[1])
-print(math.ceil((img.shape[0]-windowsz//2*2)/workitems[0]),math.ceil((img.shape[1]-windowsz//2*2)/workitems[1]))
-glcm=np.zeros((workgroups[1], 256, 256), dtype=np.float32)
+workitems=(16,16)
+blocksize=64
+workgroups=(math.ceil(res.shape[0]/blocksize)*workitems[0],math.ceil(res.shape[1]/blocksize)*workitems[1])
+print(workgroups[0]/workitems[0], workgroups[1]/workitems[1])
+print(workgroups)
+glcm=np.zeros(((workgroups[0]//workitems[0]*workgroups[1]//workitems[1]), 256, 256), dtype=np.float32)
 
 
 img_buff=cl.Buffer(context, flags=cl.mem_flags.READ_ONLY, size=img.nbytes)
@@ -56,14 +58,14 @@ for (arr, buff) in input:
 #krn_args=[glcm_buff, img_buff, np.uint8(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), res_buff, np.uint8(prop), np.int32(res.shape[0]), np.int32(res.shape[1])]
 #prgs.swkrn(queue, (res.shape[1], 1), (1,1), *krn_args)
 print(x_neighbour, y_neighbour)
-krn_args=[glcm_buff, img_buff,res_buff, np.int32(img.shape[0]), np.int32(img.shape[1]), np.int32(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), np.int32(prop)]
+krn_args=[glcm_buff, img_buff,res_buff, np.int32(img.shape[0]), np.int32(img.shape[1]), np.int32(windowsz), np.int32(x_neighbour), np.int32(y_neighbour), np.int32(prop), np.int32(blocksize)]
 begin=time.perf_counter()
 prgs.swkrn_debug(queue, workgroups, workitems, *krn_args)
 for (arr, buff) in output:
     cl.enqueue_copy(queue, src=buff, dest=arr)
 queue.finish()
 print(time.perf_counter()-begin)
-si.imsave(f"newgpu-threads-7.tif", res)
+si.imsave(f"newgpu-threads-11.tif", res)
 si.imsave(f"orig.tif", img)
 
 
