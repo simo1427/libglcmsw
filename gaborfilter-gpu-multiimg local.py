@@ -6,6 +6,7 @@ from skimage.util import img_as_float, img_as_ubyte
 from skimage.color import rgb2gray
 from skimage.filters import gabor_kernel
 import pyopencl as cl
+import pyopencl.array
 import time
 import openslide
 import os
@@ -23,23 +24,30 @@ for theta in np.arange(0, np.pi, np.pi / 16):
     kernel = cv2.getGaborKernel((ksize, ksize), 15.42, theta, 32, 0.5, 0, ktype=cv2.CV_32F)
     kernel /= 1.5*kernel.sum()
     kernel5.append(kernel)
-
 print(kernel5[0].shape)
 tmpkrn=np.array(kernel5)
+"""krn=np.zeros((ksize, ksize), dtype=cl.cltypes.float16)
+for i in range(ksize):
+    for j in range(ksize):
+        krn[i,j]=cl.cltypes.make_float16(tmpkrn[0,i,j],tmpkrn[1,i,j],tmpkrn[2,i,j],tmpkrn[3,i,j],tmpkrn[4,i,j],tmpkrn[5,i,j],tmpkrn[6,i,j],tmpkrn[7,i,j],tmpkrn[8,i,j],tmpkrn[9,i,j],tmpkrn[10,i,j],tmpkrn[11,i,j],tmpkrn[12,i,j],tmpkrn[13,i,j],tmpkrn[14,i,j],tmpkrn[15,i,j])
+"""
 krn=np.zeros((ksize, ksize, 16), dtype=np.float32)
 for i in range(ksize):
     for j in range(ksize):
         for k in range(16):
             krn[i,j,k]=tmpkrn[k,i,j]
+
 res=np.zeros((2,img.shape[1],img.shape[2],16), dtype=np.float32)
+
 print(krn.shape)
 
 begin=time.perf_counter()
-si.imsave("test.tif",ndi.convolve(img[0], krn[:,:,0], mode='wrap'))
+for i in range(16):
+    pass#si.imsave(f"test{i}.tif",ndi.convolve(img[0], tmpkrn[i], mode='wrap'))
 print(f"CPU convolution: {time.perf_counter()-begin}")
 
 #si.imsave("test1.tif",res)
-src=open("src-3darray-multiimg-working2dglobalsize-local.cl", "r").read()
+src=open("src-3darray-multiimg-working2dglobalsize-local-working111.cl", "r").read()
 def platformslist():
     return [platform.name for platform in cl.get_platforms()]
 
@@ -67,10 +75,14 @@ inp=[(img,img_buff),(res,res_buff),(krn, krn_buff)]
 out=[(res,res_buff)]
 for (arr, buff) in inp:
     cl.enqueue_copy(queue, src=arr, dest=buff)
-patchsz=32
-krn_args=[img_buff, res_buff, krn_buff, np.int32(img.shape[1]), np.int32(img.shape[2]), np.int32(ksize), np.int32(16), np.int32(img.shape[0]), np.int32(patchsz)]
-completedEvent=prgs.convolvecut(queue, ((img.shape[1]//patchsz+1)*patchsz, (img.shape[2]//patchsz+1)*patchsz), (1,1), *krn_args)
-completedEvent.wait()
+patchsz=100-ksize
+krn_args=[img_buff, res_buff, krn_buff, np.int32(img.shape[1]), np.int32(img.shape[2]), np.int32(ksize), np.int32(16), np.int32(img.shape[0])]
+print( ((img.shape[1]//patchsz+1), (img.shape[2]//patchsz+1), img.shape[0]), (ksize,ksize,1 ))
+
+#print(krn[30,30])
+#(20,17,2)
+completedEvent=prgs.convolvecut(queue, ((img.shape[1]//patchsz+1),  (img.shape[2]//patchsz+1), img.shape[0]),(1,1,1), *krn_args)
+#completedEvent.wait()
 for (arr, buff) in out:
     cl.enqueue_copy(queue, src=buff, dest=arr)
 queue.finish()
@@ -93,4 +105,6 @@ for iimg in range(2):
         si.imsave(f"vector-local-testimg-down30x-{iimg}-{i}-mod.tif", res[iimg,:,:,i])
         #print((img[iimg,:,:]).shape, (krn[:,:,i]).shape)
         #si.imsave(f"vector-testimg-down30x-{iimg}-{i}-mod-cmp.tif", np.convolve(img[iimg,:,:], krn[:,:,i]))
+for i in range(16):
+    pass#si.imsave(f"filter{i}.tif", krnimg[:,:,i])
 print(time.perf_counter()-begin)
